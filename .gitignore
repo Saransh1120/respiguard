@@ -1,0 +1,24 @@
+# Arduino build output
+build/
+*.elf
+*.bin
+*.hex
+*.map
+
+# Python side of the ML track lives on D:, but just in case
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Datasets and recordings are far too large for git
+*.wav
+data/
+datasets/
+runs/
+
+# OS and editor cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/

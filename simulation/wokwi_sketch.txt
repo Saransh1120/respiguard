@@ -1,0 +1,390 @@
+/*
+  RespiGuard - software model (Wokwi simulation)
+  -----------------------------------------------
+  Runs the real detection logic on simulated sensor inputs, so the algorithm
+  can be developed and demonstrated before the hardware is assembled.
+
+  What is real in this simulation:
+    - the personal-baseline learning
+    - the deviation scoring and the exertion veto
+    - the alert state machine, OLED output, LEDs, haptic pulse, button handling
+
+  What is stood in for:
+    - MAX30102 (SpO2 / HR)  -> potentiometer on GPIO1
+    - respiratory rate       -> potentiometer on GPIO2
+    - INMP441 wheeze score   -> potentiometer on GPIO10
+    - BMI270 motion          -> a real MPU6050 in the simulation, same I2C
+                                address 0x68 and the same accelerometer maths
+    - BME680 environment     -> synthesised slow drift
+
+  To demonstrate an attack: leave the motion sensor still, then turn the SpO2
+  pot down and the RR and wheeze pots up. The device should move from OK to
+  WATCH to ALERT. Now shake the MPU6050 - the exertion veto pulls it back to
+  WATCH, because a raised heart and breathing rate during movement is not an
+  attack.
+
+  Libraries: Adafruit SSD1306, Adafruit GFX.
+*/
+
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+// ------------------------------------------------------------------ pins
+#define PIN_SDA        8
+#define PIN_SCL        9
+#define PIN_POT_SPO2   1
+#define PIN_POT_RR     2
+#define PIN_POT_WHEEZE 10
+#define PIN_LED_GREEN  15
+#define PIN_LED_RED    16
+#define PIN_MOTOR      17
+#define PIN_BUTTON     18
+
+#define OLED_W 128
+#define OLED_H 64
+Adafruit_SSD1306 display(OLED_W, OLED_H, &Wire, -1);
+
+#define MPU_ADDR 0x68
+
+// -------------------------------------------------------------- tuning
+// Every threshold here is a deviation from the wearer's own baseline, not an
+// absolute number. Asthma presents differently in every person, so a fixed
+// "SpO2 below 94" rule produces constant false alarms in some people and
+// misses real attacks in others.
+const uint32_t BASELINE_SECONDS   = 20;    // 3 days on real hardware
+const float    RR_RISE_FRAC       = 0.20;  // 20 % above personal baseline
+const float    HR_RISE_FRAC       = 0.15;
+const float    SPO2_DROP_POINTS   = 3.0;   // percentage points, not percent
+const float    WHEEZE_THRESHOLD   = 0.50;
+const float    ACTIVITY_VETO      = 0.35;  // above this, movement explains it
+
+const int   SCORE_WATCH = 2;
+const int   SCORE_ALERT = 4;
+const uint32_t ALERT_HOLD_MS = 4000;       // stops the state flickering
+
+// -------------------------------------------------------------- state
+enum State { STATE_LEARNING, STATE_OK, STATE_WATCH, STATE_ALERT };
+State state = STATE_LEARNING;
+
+const char *stateName();
+
+struct Vitals {
+  float spo2;      // %
+  float rr;        // breaths per minute
+  float hr;        // beats per minute
+  float wheeze;    // 0..1 classifier confidence
+  float activity;  // 0..1 movement level
+  float voc;       // kOhm, BME680 gas resistance stand-in
+};
+
+Vitals now;
+
+// Running baseline, built as a simple mean over the learning window.
+double baseSpo2 = 0, baseRr = 0, baseHr = 0;
+uint32_t baseCount = 0;
+bool baselineReady = false;
+
+uint32_t lastSample = 0;
+uint32_t stateEnteredAt = 0;
+uint32_t lastBuzz = 0;
+uint32_t eventsMarked = 0;
+int lastScore = 0;
+char lastReason[24] = "";
+
+// ------------------------------------------------------------ MPU6050
+bool mpuPresent = false;
+
+void mpuBegin() {
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(0x6B);        // PWR_MGMT_1
+  Wire.write(0x00);        // wake up
+  mpuPresent = (Wire.endTransmission() == 0);
+}
+
+// Returns how far the acceleration magnitude sits from 1 g, which is a decent
+// proxy for "is this person moving". The BMI270 maths on real hardware is the
+// same; only the register addresses change.
+float mpuActivity() {
+  if (!mpuPresent) return 0.0f;
+
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(0x3B);        // ACCEL_XOUT_H
+  if (Wire.endTransmission(false) != 0) return 0.0f;
+  if (Wire.requestFrom(MPU_ADDR, 6) != 6) return 0.0f;
+
+  int16_t ax = (Wire.read() << 8) | Wire.read();
+  int16_t ay = (Wire.read() << 8) | Wire.read();
+  int16_t az = (Wire.read() << 8) | Wire.read();
+
+  float x = ax / 16384.0f, y = ay / 16384.0f, z = az / 16384.0f;
+  float mag = sqrtf(x * x + y * y + z * z);
+  float dev = fabsf(mag - 1.0f);
+
+  // Light smoothing so a single jolt does not swing the veto.
+  static float smooth = 0;
+  smooth = smooth * 0.7f + dev * 0.3f;
+  return constrain(smooth, 0.0f, 1.0f);
+}
+
+// ------------------------------------------------------- sensor stand-ins
+float readPot(int pin) {
+  return analogRead(pin) / 4095.0f;
+}
+
+void sampleSensors() {
+  // Pot fully clockwise is a healthy reading, fully anticlockwise is a bad one,
+  // so a demo turns the knobs the intuitive way.
+  now.spo2   = 88.0f + readPot(PIN_POT_SPO2) * 12.0f;      // 88 .. 100 %
+  now.rr     = 10.0f + (1.0f - readPot(PIN_POT_RR)) * 30.0f; // 10 .. 40 /min
+  now.wheeze = 1.0f - readPot(PIN_POT_WHEEZE);              // 0 .. 1
+
+  now.activity = mpuActivity();
+
+  // Heart rate is not independent: it rises as oxygen falls and as the person
+  // moves. Deriving it keeps the demo physiologically honest.
+  float hypoxicDrive = constrain((97.0f - now.spo2) * 3.5f, 0.0f, 40.0f);
+  now.hr = 68.0f + hypoxicDrive + now.activity * 45.0f;
+
+  // BME680 stand-in: a slow VOC drift, lower resistance meaning dirtier air.
+  now.voc = 120.0f + 40.0f * sinf(millis() / 42000.0f);
+}
+
+// ----------------------------------------------------------- baseline
+void updateBaseline() {
+  baseSpo2 += now.spo2;
+  baseRr   += now.rr;
+  baseHr   += now.hr;
+  baseCount++;
+
+  if (baseCount >= BASELINE_SECONDS) {
+    baseSpo2 /= baseCount;
+    baseRr   /= baseCount;
+    baseHr   /= baseCount;
+    baselineReady = true;
+    state = STATE_OK;
+    stateEnteredAt = millis();
+
+    Serial.println();
+    Serial.println("  baseline learned:");
+    Serial.printf("    SpO2 %.1f %%   RR %.1f /min   HR %.0f bpm\n",
+                  baseSpo2, baseRr, baseHr);
+    Serial.println("  monitoring now. turn the pots to simulate an episode.");
+    Serial.println();
+  }
+}
+
+void resetBaseline() {
+  baseSpo2 = baseRr = baseHr = 0;
+  baseCount = 0;
+  baselineReady = false;
+  state = STATE_LEARNING;
+  stateEnteredAt = millis();
+  lastReason[0] = 0;
+  Serial.println("  baseline cleared, relearning");
+}
+
+// -------------------------------------------------------------- scoring
+int scoreDeviation() {
+  int score = 0;
+  lastReason[0] = 0;
+
+  bool rrHigh    = now.rr   > baseRr * (1.0f + RR_RISE_FRAC);
+  bool hrHigh    = now.hr   > baseHr * (1.0f + HR_RISE_FRAC);
+  bool spo2Low   = now.spo2 < baseSpo2 - SPO2_DROP_POINTS;
+  bool wheezing  = now.wheeze > WHEEZE_THRESHOLD;
+
+  // Wheeze and desaturation carry more weight because neither is explained by
+  // ordinary activity. Rate changes alone are weak evidence.
+  if (wheezing) { score += 2; strncpy(lastReason, "wheeze", sizeof(lastReason)); }
+  if (spo2Low)  { score += 2; strncpy(lastReason, "SpO2 drop", sizeof(lastReason)); }
+  if (rrHigh)   { score += 1; if (!lastReason[0]) strncpy(lastReason, "RR rise", sizeof(lastReason)); }
+  if (hrHigh)   { score += 1; if (!lastReason[0]) strncpy(lastReason, "HR rise", sizeof(lastReason)); }
+
+  // The exertion veto. Running up stairs raises RR and HR and drops SpO2 a
+  // little; without this the device would alarm on every PE class.
+  if (now.activity > ACTIVITY_VETO && !wheezing) {
+    score -= 2;
+    strncpy(lastReason, "moving", sizeof(lastReason));
+  }
+
+  return max(score, 0);
+}
+
+void updateState() {
+  if (!baselineReady) return;
+
+  int score = scoreDeviation();
+  lastScore = score;
+
+  State target;
+  if (score >= SCORE_ALERT)      target = STATE_ALERT;
+  else if (score >= SCORE_WATCH) target = STATE_WATCH;
+  else                           target = STATE_OK;
+
+  // Falling back to a calmer state has to wait out the hold time, so the
+  // display does not flicker between two states on borderline readings.
+  bool calming = target < state;
+  if (calming && millis() - stateEnteredAt < ALERT_HOLD_MS) return;
+
+  if (target != state) {
+    state = target;
+    stateEnteredAt = millis();
+    Serial.printf("  -> %s  (score %d, %s)\n", stateName(), score,
+                  lastReason[0] ? lastReason : "within baseline");
+  }
+}
+
+const char *stateName() {
+  switch (state) {
+    case STATE_LEARNING: return "LEARNING";
+    case STATE_OK:       return "OK";
+    case STATE_WATCH:    return "WATCH";
+    default:             return "ALERT";
+  }
+}
+
+// ------------------------------------------------------------- outputs
+void driveOutputs() {
+  bool alert = (state == STATE_ALERT);
+  bool watch = (state == STATE_WATCH);
+
+  digitalWrite(PIN_LED_GREEN, state == STATE_OK);
+
+  if (alert) {
+    digitalWrite(PIN_LED_RED, (millis() / 250) % 2);
+  } else if (watch) {
+    digitalWrite(PIN_LED_RED, (millis() / 800) % 2);
+  } else {
+    digitalWrite(PIN_LED_RED, LOW);
+  }
+
+  // Haptic: a double pulse every four seconds while in alert.
+  if (alert && millis() - lastBuzz > 4000) {
+    lastBuzz = millis();
+    for (int i = 0; i < 2; i++) {
+      digitalWrite(PIN_MOTOR, HIGH); delay(120);
+      digitalWrite(PIN_MOTOR, LOW);  delay(100);
+    }
+  }
+}
+
+void drawScreen() {
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.print("RespiGuard");
+
+  // State sits top right, inverted when it needs attention.
+  const char *s = stateName();
+  int w = strlen(s) * 6;
+  if (state == STATE_ALERT || state == STATE_WATCH) {
+    display.fillRect(OLED_W - w - 4, 0, w + 4, 9, SSD1306_WHITE);
+    display.setTextColor(SSD1306_BLACK);
+  }
+  display.setCursor(OLED_W - w - 2, 1);
+  display.print(s);
+  display.setTextColor(SSD1306_WHITE);
+  display.drawFastHLine(0, 11, OLED_W, SSD1306_WHITE);
+
+  if (state == STATE_LEARNING) {
+    display.setCursor(0, 20);
+    display.print("Learning baseline");
+    display.setCursor(0, 32);
+    display.printf("%lu / %lu s", (unsigned long)baseCount,
+                   (unsigned long)BASELINE_SECONDS);
+    int barW = (int)((float)baseCount / BASELINE_SECONDS * (OLED_W - 4));
+    display.drawRect(0, 46, OLED_W, 10, SSD1306_WHITE);
+    display.fillRect(2, 48, constrain(barW, 0, OLED_W - 4), 6, SSD1306_WHITE);
+  } else {
+    display.setCursor(0, 16);
+    display.printf("SpO2 %4.1f%%  b%4.1f", now.spo2, baseSpo2);
+    display.setCursor(0, 26);
+    display.printf("RR   %4.1f    b%4.1f", now.rr, baseRr);
+    display.setCursor(0, 36);
+    display.printf("HR   %4.0f    b%4.0f", now.hr, baseHr);
+    display.setCursor(0, 46);
+    display.printf("WZ %.2f  ACT %.2f", now.wheeze, now.activity);
+
+    display.setCursor(0, 56);
+    if (lastReason[0]) display.printf("%s  score %d", lastReason, lastScore);
+    else               display.printf("within baseline");
+  }
+
+  display.display();
+}
+
+// -------------------------------------------------------------- button
+void handleButton() {
+  static bool wasDown = false;
+  static uint32_t downAt = 0;
+
+  bool down = (digitalRead(PIN_BUTTON) == LOW);
+
+  if (down && !wasDown) {
+    downAt = millis();
+  } else if (!down && wasDown) {
+    uint32_t held = millis() - downAt;
+    if (held > 1500) {
+      resetBaseline();
+    } else if (held > 30) {
+      eventsMarked++;
+      Serial.printf("  event %lu marked by wearer\n", (unsigned long)eventsMarked);
+      digitalWrite(PIN_MOTOR, HIGH); delay(80); digitalWrite(PIN_MOTOR, LOW);
+    }
+  }
+  wasDown = down;
+}
+
+// --------------------------------------------------------------- setup
+void setup() {
+  Serial.begin(115200);
+  delay(200);
+
+  pinMode(PIN_LED_GREEN, OUTPUT);
+  pinMode(PIN_LED_RED, OUTPUT);
+  pinMode(PIN_MOTOR, OUTPUT);
+  pinMode(PIN_BUTTON, INPUT_PULLUP);
+
+  Wire.begin(PIN_SDA, PIN_SCL);
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("  OLED not found at 0x3C");
+  }
+  display.clearDisplay();
+  display.display();
+
+  mpuBegin();
+
+  Serial.println();
+  Serial.println("========================================");
+  Serial.println("  RespiGuard - software model");
+  Serial.println("========================================");
+  Serial.printf("  motion sensor: %s\n", mpuPresent ? "found" : "MISSING");
+  Serial.printf("  learning baseline for %lu s\n", (unsigned long)BASELINE_SECONDS);
+  Serial.println("  short press = mark event, hold 1.5 s = relearn");
+  Serial.println();
+
+  stateEnteredAt = millis();
+}
+
+void loop() {
+  handleButton();
+
+  if (millis() - lastSample >= 1000) {
+    lastSample = millis();
+
+    sampleSensors();
+    if (!baselineReady) updateBaseline();
+    else                updateState();
+
+    Serial.printf("  SpO2 %5.1f  RR %5.1f  HR %5.0f  WZ %.2f  ACT %.2f  [%s]\n",
+                  now.spo2, now.rr, now.hr, now.wheeze, now.activity, stateName());
+  }
+
+  driveOutputs();
+  drawScreen();
+  delay(30);
+}

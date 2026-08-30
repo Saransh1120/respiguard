@@ -1,0 +1,873 @@
+<title>RespiGuard Bring-Up</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --ground:   #EDF1F3;
+    --surface:  #FFFFFF;
+    --sunken:   #E3E9ED;
+    --ink:      #0E1720;
+    --ink-soft: #33454F;
+    --muted:    #5E7180;
+    --line:     #CFDAE1;
+    --line-soft:#E1E9ED;
+
+    --accent:   #0B6C7C;
+    --accent-2: #084E5A;
+    --accent-wash: #E0F0F2;
+
+    --danger:   #A32219;
+    --danger-wash: #FBE9E7;
+    --pass:     #256B34;
+    --pass-wash:#E5F2E7;
+
+    --shadow: 0 1px 2px rgba(14,23,32,.06), 0 8px 24px -12px rgba(14,23,32,.18);
+
+    --measure: 68ch;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:   #0D1318;
+      --surface:  #151E25;
+      --sunken:   #101920;
+      --ink:      #E8EFF3;
+      --ink-soft: #C0CFD8;
+      --muted:    #8698A5;
+      --line:     #27353F;
+      --line-soft:#1E2A33;
+
+      --accent:   #4FC3D4;
+      --accent-2: #8ADCE8;
+      --accent-wash: #102A31;
+
+      --danger:   #F0857A;
+      --danger-wash: #2C1512;
+      --pass:     #74C286;
+      --pass-wash:#122415;
+
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -14px rgba(0,0,0,.7);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:   #0D1318;
+    --surface:  #151E25;
+    --sunken:   #101920;
+    --ink:      #E8EFF3;
+    --ink-soft: #C0CFD8;
+    --muted:    #8698A5;
+    --line:     #27353F;
+    --line-soft:#1E2A33;
+
+    --accent:   #4FC3D4;
+    --accent-2: #8ADCE8;
+    --accent-wash: #102A31;
+
+    --danger:   #F0857A;
+    --danger-wash: #2C1512;
+    --pass:     #74C286;
+    --pass-wash:#122415;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -14px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 0 24px 96px;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    padding: 56px 0 32px;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+
+  h1 {
+    font-family: "Source Serif 4", Georgia, serif;
+    font-weight: 700;
+    font-size: clamp(2.1rem, 5.4vw, 3.1rem);
+    line-height: 1.08;
+    letter-spacing: -0.018em;
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    font-family: "Source Serif 4", Georgia, serif;
+    font-size: clamp(1.02rem, 2vw, 1.16rem);
+    line-height: 1.62;
+    color: var(--ink-soft);
+    max-width: var(--measure);
+    margin: 0;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+    margin-top: 26px;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .meta b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- the one rule ---------- */
+
+  .rule-box {
+    margin: 34px 0 0;
+    padding: 22px 24px;
+    background: var(--accent-wash);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+  }
+  .rule-box h2 {
+    font-family: "Instrument Sans", sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 8px;
+  }
+  .rule-box p {
+    margin: 0;
+    font-family: "Source Serif 4", Georgia, serif;
+    font-size: 1.06rem;
+    line-height: 1.58;
+    color: var(--ink);
+    max-width: var(--measure);
+  }
+
+  /* ---------- phases ---------- */
+
+  .phase { margin-top: 60px; }
+
+  .phase-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 8px;
+  }
+  .phase-tag {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .phase-head h2 {
+    font-family: "Source Serif 4", Georgia, serif;
+    font-size: 1.55rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0;
+    flex: 1;
+  }
+  .phase-note {
+    font-size: .93rem;
+    color: var(--muted);
+    margin: 0 0 26px;
+    max-width: var(--measure);
+  }
+
+  /* ---------- steps ---------- */
+
+  .step {
+    display: grid;
+    grid-template-columns: 46px 1fr;
+    gap: 0 18px;
+    background: var(--surface);
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    padding: 20px 22px 20px 18px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+  }
+  .step.critical { border-color: var(--danger); }
+
+  .num {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 15px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    padding-top: 1px;
+  }
+  .step.critical .num { color: var(--danger); }
+
+  .step h3 {
+    font-family: "Instrument Sans", sans-serif;
+    font-size: 1.04rem;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    margin: 0 0 8px;
+    color: var(--ink);
+  }
+  .step p {
+    margin: 0 0 12px;
+    color: var(--ink-soft);
+    font-size: .965rem;
+    max-width: var(--measure);
+  }
+  .step p:last-child { margin-bottom: 0; }
+
+  /* the confirm strip — the guide's structural spine */
+  .confirm {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: var(--sunken);
+    border-radius: 6px;
+    padding: 11px 14px;
+    margin-top: 12px;
+    font-size: .9rem;
+  }
+  .confirm-label {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--pass);
+    white-space: nowrap;
+    padding-top: 3px;
+  }
+  .confirm span:last-child { color: var(--ink-soft); }
+
+  .warn {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: var(--danger-wash);
+    border-radius: 6px;
+    padding: 11px 14px;
+    margin-top: 12px;
+    font-size: .9rem;
+  }
+  .warn-label {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--danger);
+    white-space: nowrap;
+    padding-top: 3px;
+  }
+  .warn span:last-child { color: var(--ink-soft); }
+
+  code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .875em;
+    background: var(--sunken);
+    padding: 1.5px 5px;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+  .confirm code, .warn code { background: rgba(127,127,127,.14); }
+
+  /* ---------- tables ---------- */
+
+  .table-scroll { overflow-x: auto; margin: 0 0 14px; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .9rem;
+    min-width: 460px;
+  }
+  th {
+    text-align: left;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 14px 8px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  td {
+    padding: 9px 14px 9px 0;
+    border-bottom: 1px solid var(--line-soft);
+    color: var(--ink-soft);
+    vertical-align: top;
+  }
+  td:first-child { color: var(--ink); font-weight: 500; }
+  td.mono, th.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  /* ---------- closing ---------- */
+
+  .closing {
+    margin-top: 64px;
+    padding-top: 28px;
+    border-top: 2px solid var(--ink);
+  }
+  .closing h2 {
+    font-family: "Source Serif 4", Georgia, serif;
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin: 0 0 14px;
+  }
+  .closing p {
+    font-family: "Source Serif 4", Georgia, serif;
+    font-size: 1.02rem;
+    line-height: 1.62;
+    color: var(--ink-soft);
+    max-width: var(--measure);
+    margin: 0 0 14px;
+  }
+
+  @media (max-width: 600px) {
+    .step { grid-template-columns: 32px 1fr; gap: 0 12px; padding: 18px 16px; }
+    .phase-head { flex-direction: column; gap: 4px; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Workbench procedure</p>
+    <h1>Bringing RespiGuard up, one part at a time</h1>
+    <p class="standfirst">
+      Thirty-five components, six breakout boards and a battery, assembled by hand.
+      The order below is not a preference — it is the order in which a mistake
+      stays cheap. Every step ends with something you must see before the next
+      one begins.
+    </p>
+    <div class="meta">
+      <span><b>Board</b> ESP32-S3-DevKitC-1</span>
+      <span><b>Self-test</b> RespiGuard.ino</span>
+      <span><b>Serial</b> 115200 baud</span>
+    </div>
+  </header>
+
+  <div class="rule-box">
+    <h2>The rule this whole procedure rests on</h2>
+    <p>
+      Add one part. Test it. Only then add the next. Soldering everything and
+      powering up once is how a build reaches a state where nothing works and
+      there are six possible reasons why. Every fault you meet here should have
+      exactly one candidate cause: the thing you just attached.
+    </p>
+  </div>
+
+  <!-- ============ PHASE 0 ============ -->
+  <section class="phase">
+    <div class="phase-head">
+      <span class="phase-tag">Phase 0</span>
+      <h2>Before the iron is even hot</h2>
+    </div>
+    <p class="phase-note">
+      Two of the parts that arrive can be the wrong part while carrying the right
+      name. Both are cheaper to catch now than after they are soldered down.
+    </p>
+
+    <div class="step critical">
+      <div class="num">01</div>
+      <div>
+        <h3>Count the chips on the TP4056</h3>
+        <p>
+          Look at the charger board under a light. You need <strong>three</strong>
+          black chips: the TP4056 itself, a DW01 and an FS8205. Boards with only
+          the TP4056 are sold under the same name and the same photo.
+        </p>
+        <div class="warn">
+          <span class="warn-label">Reject</span>
+          <span>A single-chip board has no over-discharge protection. It will run
+          the Li-Po flat past 2.5 V and permanently kill the cell — quietly, over
+          one long night.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step critical">
+      <div class="num">02</div>
+      <div>
+        <h3>Confirm the ESP32 board has PSRAM</h3>
+        <p>
+          The wheeze classifier asks for <code>234 KB</code> of working memory at
+          startup. A compile of the finished firmware leaves only
+          <code>185 KB</code> of internal RAM free, so that allocation has to land
+          in PSRAM.
+        </p>
+        <p>
+          Look for <code>N8R8</code> or <code>N16R8</code> in the board's
+          markings — the <code>R8</code> is the PSRAM.
+        </p>
+        <div class="warn">
+          <span class="warn-label">If absent</span>
+          <span>The firmware still runs, but <code>classifier.begin()</code>
+          returns false and the serial banner prints <code>model FAILED</code>.
+          Wheeze detection is then dead and the score loses its heaviest term.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PHASE 1 ============ -->
+  <section class="phase">
+    <div class="phase-head">
+      <span class="phase-tag">Phase 1</span>
+      <h2>Power, with nothing else connected</h2>
+    </div>
+    <p class="phase-note">
+      Power comes first and alone. A rail set wrong with the ESP32 already
+      attached destroys the most expensive part on the bench in the time it takes
+      to notice.
+    </p>
+
+    <div class="step critical">
+      <div class="num">03</div>
+      <div>
+        <h3>Set the buck-boost to 3.3 V before it touches anything</h3>
+        <p>
+          Feed the module from the battery or a USB supply. Put the multimeter on
+          its output, turn the trimmer, and bring it to <code>3.30 V</code>.
+          Nothing else is wired at this point.
+        </p>
+        <div class="confirm">
+          <span class="confirm-label">Confirm</span>
+          <span>Multimeter reads between <code>3.25</code> and <code>3.35 V</code>,
+          steady, with the supply moving.</span>
+        </div>
+        <div class="warn">
+          <span class="warn-label">Why alone</span>
+          <span>These modules ship set anywhere from 1 V to 12 V. Wiring first and
+          adjusting after puts whatever it happened to be set to straight across
+          a 3.3 V part.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">04</div>
+      <div>
+        <h3>Battery, switch and charger</h3>
+        <p>
+          Li-Po into the TP4056 through the JST connector. The SPDT slide switch
+          goes between the charger's output and the buck-boost input, so it cuts
+          the battery and not the charging path.
+        </p>
+        <div class="confirm">
+          <span class="confirm-label">Confirm</span>
+          <span>Switch on gives <code>3.3 V</code> at the buck-boost output;
+          switch off gives <code>0 V</code>. Plugging USB into the TP4056 lights
+          its charge LED with the switch in either position.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">05</div>
+      <div>
+        <h3>Decoupling capacitors</h3>
+        <p>
+          The <code>470 µF</code> electrolytic goes across the 3.3 V rail close to
+          the buck-boost — mind the polarity stripe. A <code>100 nF</code> ceramic
+          goes next to each of the four breakout boards' power pins.
+        </p>
+        <div class="confirm">
+          <span class="confirm-label">Confirm</span>
+          <span>Rail still reads <code>3.3 V</code>, and continuity between the
+          470 µF terminals reads open, not a short.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PHASE 2 ============ -->
+  <section class="phase">
+    <div class="phase-head">
+      <span class="phase-tag">Phase 2</span>
+      <h2>The ESP32 alone</h2>
+    </div>
+    <p class="phase-note">
+      Before any sensor, prove the board itself and the one analogue circuit that
+      is easy to get wrong.
+    </p>
+
+    <div class="step">
+      <div class="num">06</div>
+      <div>
+        <h3>Blink, over USB only</h3>
+        <p>
+          Board still off the battery rail. Flash anything that toggles a pin and
+          confirm the Arduino IDE can talk to it.
+        </p>
+        <div class="confirm">
+          <span class="confirm-label">Confirm</span>
+          <span>Sketch uploads, and the serial monitor shows output at
+          <code>115200</code>.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">07</div>
+      <div>
+        <h3>Battery divider on GPIO 1</h3>
+        <p>
+          Two <code>100 kΩ</code> resistors in series across the battery, with
+          GPIO 1 at their junction. The firmware reads that pin and doubles it.
+        </p>
+        <div class="confirm">
+          <span class="confirm-label">Confirm</span>
+          <span>The voltage the firmware prints matches what the multimeter reads
+          across the cell, within about <code>0.1 V</code>.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PHASE 3 ============ -->
+  <section class="phase">
+    <div class="phase-head">
+      <span class="phase-tag">Phase 3</span>
+      <h2>I²C, one device per test</h2>
+    </div>
+    <p class="phase-note">
+      All four I²C parts share two wires — <code>SDA 8</code> and
+      <code>SCL 9</code>. Attach them one at a time and run
+      <code>RespiGuard.ino</code> after each. It probes every address and prints a
+      pass/fail table, and it needs no libraries.
+    </p>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Part</th>
+            <th class="mono">Address</th>
+            <th class="mono">ID register</th>
+            <th class="mono">Expected</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>SSD1306 OLED</td><td class="mono">0x3C</td><td class="mono">—</td><td class="mono">draws</td></tr>
+          <tr><td>MAX30102</td><td class="mono">0x57</td><td class="mono">0xFF</td><td class="mono">0x15</td></tr>
+          <tr><td>BME680</td><td class="mono">0x76 / 0x77</td><td class="mono">0xD0</td><td class="mono">0x61</td></tr>
+          <tr><td>BMI270</td><td class="mono">0x68 / 0x69</td><td class="mono">0x00</td><td class="mono">0x24</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="step">
+      <div class="num">08</div>
+      <div>
+        <h3>OLED first, because it proves the bus</h3>
+        <p>
+          The display is the one I²C part whose success is visible without reading
+          a number. If it draws, <code>SDA</code>, <code>SCL</code>, power and
+          ground are all correct, and every later failure belongs to the part
+          being added rather than to the wiring underneath it.
+        </p>
+        <div class="confirm">
+          <span class="confirm-label">Confirm</span>
+          <span>Self-test reports <code>0x3C</code> found, and something appears
+          on the screen.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">09</div>
+      <div>
+        <h3>MAX30102</h3>
+        <p>
+          Register <code>0xFF</code> must return <code>0x15</code>. With a finger
+          on it, the red LED should be faintly visible through the skin.
+        </p>
+        <div class="confirm">
+          <span class="confirm-label">Confirm</span>
+          <span><code>0x57</code> answers and the part ID reads <code>0x15</code>.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step critical">
+      <div class="num">10</div>
+      <div>
+        <h3>BME680 — and the substitution to watch for</h3>
+        <p>
+          Register <code>0xD0</code> must return <code>0x61</code>.
+        </p>
+        <div class="warn">
+          <span class="warn-label">If 0x58</span>
+          <span>You have a BMP280 sold as a BME680. It is a common substitution.
+          Pressure and temperature will work; the gas sensor does not exist on
+          that die. Return it.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">11</div>
+      <div>
+        <h3>BMI270</h3>
+        <p>
+          Register <code>0x00</code> must return <code>0x24</code>. This part
+          needs an 8 KB configuration blob uploaded at every power-on before it
+          produces data, which is why the firmware drives it through the SparkFun
+          library rather than raw I²C like the others.
+        </p>
+        <div class="confirm">
+          <span class="confirm-label">Confirm</span>
+          <span>ID reads <code>0x24</code>, and tilting the board changes the
+          acceleration values.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PHASE 4 ============ -->
+  <section class="phase">
+    <div class="phase-head">
+      <span class="phase-tag">Phase 4</span>
+      <h2>The microphone</h2>
+    </div>
+    <p class="phase-note">
+      The INMP441 is on I²S, not I²C, so nothing in the self-test table covers
+      it. It is also the part the whole wheeze track depends on.
+    </p>
+
+    <div class="step critical">
+      <div class="num">12</div>
+      <div>
+        <h3>INMP441, with L/R tied to ground</h3>
+        <p>
+          Wire <code>BCLK 4</code>, <code>WS 5</code>, <code>SD 6</code>. The
+          board's <code>L/R</code> pin must go to <strong>ground</strong>: the
+          firmware opens the port as <code>ONLY_LEFT</code>, and a mic left on the
+          right channel returns a buffer of zeros with no error anywhere.
+        </p>
+        <div class="confirm">
+          <span class="confirm-label">Confirm</span>
+          <span>Print the raw I²S samples. Silence should still show small
+          non-zero values that jump when you speak. A perfectly flat zero means
+          the channel is wrong, not that the room is quiet.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">13</div>
+      <div>
+        <h3>Mount it facing the chest, on the base</h3>
+        <p>
+          Breath sounds travel better through the body than through air. The mic
+          port goes on the underside of the enclosure, against the skin — not on
+          the top edge where it would mostly hear the room.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PHASE 5 ============ -->
+  <section class="phase">
+    <div class="phase-head">
+      <span class="phase-tag">Phase 5</span>
+      <h2>Outputs and the button</h2>
+    </div>
+    <p class="phase-note">
+      The cheapest parts, and the last, because none of them can hide a fault in
+      anything else.
+    </p>
+
+    <div class="step">
+      <div class="num">14</div>
+      <div>
+        <h3>LEDs</h3>
+        <p>
+          Green on <code>15</code>, red on <code>16</code>, each through a
+          <code>220 Ω</code> resistor to ground.
+        </p>
+      </div>
+    </div>
+
+    <div class="step critical">
+      <div class="num">15</div>
+      <div>
+        <h3>Vibration motor — the diode is not optional</h3>
+        <p>
+          GPIO <code>17</code> through <code>1 kΩ</code> into the base of the
+          2N2222; motor between the collector and 3.3 V; emitter to ground.
+        </p>
+        <div class="warn">
+          <span class="warn-label">Flyback</span>
+          <span>The <code>1N4148</code> goes across the motor terminals, banded end
+          to the positive side. Without it, every switch-off sends an inductive
+          spike back into the transistor and onto the rail — which shows up later
+          as an ESP32 that resets at random and looks like a firmware bug.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">16</div>
+      <div>
+        <h3>Button on GPIO 18</h3>
+        <p>
+          One side to the pin, the other to ground. No pull-up resistor — the pin
+          is configured <code>INPUT_PULLUP</code> in firmware.
+        </p>
+        <div class="confirm">
+          <span class="confirm-label">Confirm</span>
+          <span>Short press marks an event and buzzes once; holding
+          <code>1.5 s</code> clears the baseline and restarts learning.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PHASE 6 ============ -->
+  <section class="phase">
+    <div class="phase-head">
+      <span class="phase-tag">Phase 6</span>
+      <h2>The real firmware</h2>
+    </div>
+
+    <div class="step">
+      <div class="num">17</div>
+      <div>
+        <h3>Flash <code>RespiGuard_firmware</code> and read the banner</h3>
+        <p>
+          The sketch prints a startup summary. All six lines have to be good
+          before anything else is worth debugging.
+        </p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>Line</th><th>Must say</th><th>If not</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="mono">MAX30102</td><td class="mono">found</td><td>Back to step 09</td></tr>
+              <tr><td class="mono">BMI270</td><td class="mono">found</td><td>Back to step 11</td></tr>
+              <tr><td class="mono">BME680</td><td class="mono">found</td><td>Back to step 10</td></tr>
+              <tr><td class="mono">INMP441</td><td class="mono">started</td><td>Back to step 12</td></tr>
+              <tr><td class="mono">model</td><td class="mono">loaded</td><td>No PSRAM — step 02</td></tr>
+              <tr><td class="mono">battery</td><td>a real voltage</td><td>Back to step 07</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="warn">
+          <span class="warn-label">Expect trouble</span>
+          <span>This firmware has never run on hardware. It compiles clean and its
+          maths is verified against the trained model, but nothing more. Bugs at
+          this step are the normal outcome, not a sign something is wrong with the
+          build.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PHASE 7 ============ -->
+  <section class="phase">
+    <div class="phase-head">
+      <span class="phase-tag">Phase 7</span>
+      <h2>Teaching the classifier what your hardware sounds like</h2>
+    </div>
+    <p class="phase-note">
+      The model was trained on ICBHI — a chest-contact stethoscope. Your
+      microphone sits under clothing. That gap is the largest single risk in the
+      project, and this phase is what closes it.
+    </p>
+
+    <div class="step">
+      <div class="num">18</div>
+      <div>
+        <h3>Record 50–100 normal breaths on the finished device</h3>
+        <p>
+          Worn as it will actually be worn: strap on, clothing over it, sitting
+          and walking. Normal breathing only, which raises no ethics question
+          because it is the negative class.
+        </p>
+        <div class="warn">
+          <span class="warn-label">Not yet written</span>
+          <span>This needs a recording sketch that streams raw I²S to serial —
+          it does not exist yet. It is small, and it can be written before the
+          parts arrive.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">19</div>
+      <div>
+        <h3>Fine-tune, re-export, re-verify</h3>
+        <p>
+          Continue training from the ICBHI weights with those recordings mixed in,
+          then run <code>export_weights.py</code> and
+          <code>verify_export.py</code>. The second one is not a formality: it is
+          what proves the header the firmware compiles in computes the same thing
+          the network you just measured computes.
+        </p>
+        <div class="confirm">
+          <span class="confirm-label">Confirm</span>
+          <span><code>verify_export.py</code> prints <code>PASS</code>, and the
+          firmware still compiles with the new weights.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">20</div>
+      <div>
+        <h3>Wear it for three days</h3>
+        <p>
+          The baseline window is three days on hardware, not the twenty seconds
+          the simulation used. Until that window closes the device shows
+          <code>LEARNING</code> and will not raise a state — it has no personal
+          baseline to deviate from yet.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="closing">
+    <h2>What this procedure does not give you</h2>
+    <p>
+      Finishing every step above gets you a device that detects wheeze on your own
+      hardware and scores it against your own baseline. It does not get you a
+      validated medical instrument, and the difference matters when describing the
+      project.
+    </p>
+    <p>
+      Validation against real patients runs through a clinician, with written
+      consent, and is a separate piece of work. Until that happens it belongs in
+      any write-up as future work — never as something already done.
+    </p>
+  </div>
+
+</div>
