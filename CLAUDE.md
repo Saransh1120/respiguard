@@ -17,7 +17,7 @@ Owner: Saransh. Built for a hackathon, hand-soldered from breakout modules.
 | Wokwi simulation | Working. Reaches ALERT correctly, exertion veto demonstrated |
 | Self-test firmware | Written, untested (needs hardware) |
 | Real firmware | Written, untested. `RespiGuard_firmware/`, real sensor drivers |
-| Wheeze ML model | Trained on ICBHI. AUC 0.674 — usable signal, not yet good enough |
+| Wheeze ML model | Done. AUC 0.747, sens 0.885, spec 0.391. Exported, verified, compiles at 49% flash. Awaits hardware fine-tuning |
 | Enclosure | Designed on paper only, not printed |
 
 ## Files here
