@@ -11,11 +11,16 @@ __pycache__/
 .venv/
 venv/
 
-# Datasets and recordings are far too large for git
-*.wav
-data/
+# The ICBHI database and the training runs are far too large for git
 datasets/
 runs/
+data/
+
+# Hardware recordings are the exception. They are how the person doing the
+# build hands the microphone's own sound over to the person fine-tuning the
+# classifier, and they are small: 30 s of 4 kHz mono is about 240 KB.
+!recordings/
+!recordings/**
 
 # OS and editor cruft
 .DS_Store
