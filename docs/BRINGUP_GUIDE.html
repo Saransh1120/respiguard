@@ -368,7 +368,7 @@
     </p>
     <div class="meta">
       <span><b>Board</b> ESP32-S3-DevKitC-1</span>
-      <span><b>Self-test</b> RespiGuard.ino</span>
+      <span><b>Self-test</b> RespiGuard_selftest.ino</span>
       <span><b>Serial</b> 115200 baud</span>
     </div>
   </header>
@@ -560,7 +560,7 @@
     <p class="phase-note">
       All four I²C parts share two wires — <code>SDA 8</code> and
       <code>SCL 9</code>. Attach them one at a time and run
-      <code>RespiGuard.ino</code> after each. It probes every address and prints a
+      <code>RespiGuard_selftest.ino</code> after each. It probes every address and prints a
       pass/fail table, and it needs no libraries.
     </p>
 
@@ -782,6 +782,17 @@
           </table>
         </div>
         <div class="warn">
+          <span class="warn-label">Fix this before flashing</span>
+          <span>In <code>wheeze.h</code> the audio front end is still set to
+          16&nbsp;kHz (<code>WZ_SAMPLE_RATE 16000</code>, <code>N_FFT 512</code>,
+          hop 256). The model was trained in <code>prepare_icbhi.py</code> at
+          4&nbsp;kHz with <code>N_FFT 256</code> and hop 64. Change the constants
+          in <code>wheeze.h</code> to match the training script exactly (check the
+          mel band limits too) and recompile. With the mismatch in place the
+          model does not crash; it just returns confident numbers that mean
+          nothing.</span>
+        </div>
+        <div class="warn">
           <span class="warn-label">Expect trouble</span>
           <span>This firmware has never run on hardware. It compiles clean and its
           maths is verified against the trained model, but nothing more. Bugs at
@@ -814,10 +825,11 @@
           because it is the negative class.
         </p>
         <div class="warn">
-          <span class="warn-label">Not yet written</span>
-          <span>This needs a recording sketch that streams raw I²S to serial —
-          it does not exist yet. It is small, and it can be written before the
-          parts arrive.</span>
+          <span class="warn-label">Tools are ready</span>
+          <span>Flash <code>RespiGuard_recorder</code>. It streams raw
+          microphone audio over USB at 4&nbsp;kHz. On the laptop, run
+          <code>record.py</code> from <code>D:\respiguard-ml\</code> to save
+          each recording as a WAV file.</span>
         </div>
       </div>
     </div>

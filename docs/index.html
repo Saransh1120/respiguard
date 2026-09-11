@@ -1,0 +1,2313 @@
+<title>RespiGuard Simulation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#F3F5F4; --panel:#FFFFFF; --panel2:#F7F9F8; --line:#DDE3E1; --line2:#C8D1CE;
+  --ink:#1E2A30; --dim:#52616A; --dimmer:#7C8A91;
+  --accent:#2F7F86; --accent-soft:#E2EFEF;
+  --gn:#2F8A57; --am:#B7791F; --rd:#C2453A;
+  --stage:#0C1215;
+}
+*{box-sizing:border-box}
+html,body{margin:0; background:var(--bg); color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:15px; line-height:1.5;
+  -webkit-font-smoothing:antialiased}
+button{font:inherit}
+
+.strip{position:sticky; top:0; z-index:20; height:30px; display:flex; align-items:center; justify-content:center;
+  background:#FFF4DC; color:#7A5410; border-bottom:1px solid #EAD7A8; font-size:13px; font-weight:500}
+
+/* layout */
+#app{display:grid; grid-template-columns:230px 1fr; min-height:calc(100vh - 30px)}
+@media(max-width:900px){ #app{grid-template-columns:1fr} }
+aside{border-right:1px solid var(--line); background:var(--panel); padding:18px 0;
+  position:sticky; top:30px; height:calc(100vh - 30px); overflow-y:auto}
+@media(max-width:900px){ aside{position:static; height:auto; border-right:0; border-bottom:1px solid var(--line)} }
+.proj{padding:0 18px 16px; border-bottom:1px solid var(--line); margin-bottom:10px}
+.proj .name{font-size:18px; font-weight:600}
+.proj p{margin:6px 0 0; font-size:13px; color:var(--dim); line-height:1.45}
+.proj .team{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--dimmer)}
+aside nav{display:flex; flex-direction:column; gap:1px; padding:0 8px}
+@media(max-width:900px){ aside nav{flex-direction:row; flex-wrap:wrap} }
+aside nav button{text-align:left; background:none; border:0; color:var(--dim);
+  font-size:14px; font-weight:500; padding:8px 12px; border-radius:3px; cursor:pointer}
+aside nav button:hover{color:var(--ink); background:var(--panel2)}
+aside nav button[aria-current="true"]{color:var(--accent); background:var(--accent-soft); font-weight:600}
+
+main{padding:20px 24px 24px; min-width:0}
+.hd{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; padding-bottom:12px;
+  border-bottom:1px solid var(--line); margin-bottom:16px}
+.hd h1{font-size:22px; font-weight:600; margin:0}
+.hd .r{margin-left:auto; display:flex; gap:10px; align-items:baseline; font-size:13px; color:var(--dim)}
+.status{color:var(--gn); font-weight:500}
+.status.paused{color:var(--am)}
+#clock{font-family:"IBM Plex Mono",monospace}
+.page{display:none} .page.on{display:block}
+.foot{margin-top:28px; padding-top:12px; border-top:1px solid var(--line); color:var(--dimmer); font-size:12.5px}
+.small{font-size:13px; color:var(--dimmer); margin:10px 0 0}
+
+/* controls */
+.ctl{display:flex; gap:10px; align-items:center; flex-wrap:wrap; border:1px solid var(--line);
+  background:var(--panel); border-radius:4px; padding:10px 12px; margin-bottom:14px}
+.ctl .lb{font-size:13px; color:var(--dim)}
+.seg{display:inline-flex; border:1px solid var(--line2); border-radius:3px; overflow:hidden}
+.seg button{border:0; border-right:1px solid var(--line2); background:var(--panel); color:var(--dim);
+  font-size:13px; font-weight:500; padding:6px 11px; cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--accent); color:#fff}
+.btn{font-size:14px; font-weight:500; cursor:pointer; padding:8px 16px; border-radius:3px;
+  border:1px solid var(--line2); background:var(--panel); color:var(--ink)}
+.btn:hover{border-color:var(--accent); color:var(--accent)}
+.btn:focus-visible, .seg button:focus-visible, aside nav button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.btn.pri{background:var(--accent); border-color:var(--accent); color:#fff}
+.btn.pri:hover{filter:brightness(1.08); color:#fff}
+.btn.sm{font-size:13px; padding:6px 12px}
+.btn[aria-pressed="true"]{background:var(--accent-soft); border-color:var(--accent); color:var(--accent)}
+
+/* cards */
+.grid{display:grid; gap:12px}
+.g5{grid-template-columns:repeat(auto-fit,minmax(186px,1fr))}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+@media(max-width:860px){ .g2{grid-template-columns:1fr} }
+.card{border:1px solid var(--line); background:var(--panel); border-radius:4px; overflow:hidden}
+.card > h2{font-size:13px; font-weight:600; color:var(--ink); margin:0; padding:9px 13px;
+  border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:baseline; gap:8px}
+.card > h2 small{font-weight:400; color:var(--dimmer); font-size:12.5px}
+.card .bd{padding:13px}
+
+.tele{padding:12px 14px 9px}
+.tele .k{font-size:13px; color:var(--dim)}
+.tele .v{font-size:30px; font-weight:600; line-height:1.15; margin-top:2px; font-variant-numeric:tabular-nums}
+.tele .v small{font-size:13px; font-weight:400; color:var(--dim); margin-left:4px}
+.tele .b{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--dimmer); margin-top:2px}
+.tele .b b{color:var(--dim); font-weight:500}
+.tele canvas{display:block; width:100%; height:30px; margin-top:7px}
+.tele.hi .v{color:var(--am)} .tele.al .v{color:var(--rd)}
+
+canvas.wide{display:block; width:100%; background:var(--stage)}
+.rows{display:flex; flex-direction:column}
+.row{display:grid; grid-template-columns:1fr auto; gap:10px; align-items:baseline;
+  padding:8px 13px; border-bottom:1px solid var(--line); font-size:14px}
+.row:last-child{border-bottom:0}
+.row .n{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; white-space:nowrap}
+.pts{font-family:"IBM Plex Mono",monospace; font-weight:600; font-variant-numeric:tabular-nums}
+.pts.on{color:var(--rd)} .pts.veto{color:var(--gn)} .pts.off{color:var(--dimmer)}
+.tot{display:flex; justify-content:space-between; align-items:center; padding:10px 13px;
+  background:var(--panel2); border-top:1px solid var(--line)}
+.tot .st{font-weight:600; font-size:15px}
+.tot .n{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:24px; font-variant-numeric:tabular-nums}
+.ok{color:var(--gn)} .wa{color:var(--am)} .al{color:var(--rd)}
+
+.big{text-align:center; padding:18px 13px 14px}
+.big .s{font-size:18px; font-weight:600}
+.big .c{font-family:"IBM Plex Mono",monospace; font-size:40px; font-weight:600; font-variant-numeric:tabular-nums; margin-top:4px; line-height:1}
+.big .l{font-size:12.5px; color:var(--dimmer); margin-top:6px}
+.meter{height:5px; background:var(--line); border-radius:3px; overflow:hidden; margin:12px 13px}
+.meter i{display:block; height:100%; background:var(--accent); width:0%; transition:width .25s}
+.meter i.hot{background:var(--am)}
+
+.ev{display:flex; flex-direction:column; max-height:330px; overflow-y:auto}
+.ev .e{display:grid; grid-template-columns:66px 8px 1fr; gap:10px; padding:8px 13px;
+  border-bottom:1px solid var(--line); font-size:13.5px; align-items:start}
+.ev .e:last-child{border-bottom:0}
+.ev time{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--dimmer); padding-top:2px}
+.ev i{width:7px; height:7px; border-radius:50%; margin-top:6px; background:var(--dim)}
+
+table{border-collapse:collapse; width:100%; font-size:14px}
+th,td{text-align:left; padding:8px 13px; border-bottom:1px solid var(--line); vertical-align:top}
+thead th{font-size:12.5px; font-weight:600; color:var(--dim); background:var(--panel2)}
+tbody tr:last-child td{border-bottom:0}
+td.m{font-family:"IBM Plex Mono",monospace; white-space:nowrap; font-variant-numeric:tabular-nums}
+.wrapt{overflow-x:auto}
+
+.prose{max-width:72ch}
+.prose h3{font-size:17px; font-weight:600; margin:22px 0 4px}
+.prose h3:first-child{margin-top:0}
+.prose p{color:var(--dim); margin:10px 0; font-size:15px}
+.prose p b{color:var(--ink); font-weight:600}
+.note{border-left:3px solid var(--am); background:#FBF4E6; padding:11px 14px; margin:16px 0; font-size:14px; color:var(--dim)}
+.note b{color:#7A5410; display:block; margin-bottom:2px}
+svg text{font-family:"IBM Plex Sans",sans-serif; font-size:11px}
+.st-lbl{font-size:12.5px; font-weight:600; fill:var(--ink)}
+.st-sub{font-size:11px; fill:var(--dimmer)}
+
+/* on the body: fits the window; the 3D view keeps a dark stage */
+.bodylay{display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:12px; align-items:start;
+  height:calc(100vh - 216px); min-height:420px}
+.stage{position:relative; border-radius:4px; overflow:hidden; height:100%;
+  background:radial-gradient(120% 100% at 50% 6%, #18252A 0%, var(--stage) 72%);
+  cursor:grab; touch-action:none}
+.stage.dragging{cursor:grabbing}
+.stage canvas.gl{display:block; width:100%; height:100%; position:absolute; inset:0}
+.stage svg.leads{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
+.ov{position:absolute; pointer-events:none}
+.hint{left:12px; bottom:9px; font-size:12px; color:#8B9AA1}
+.chip{left:11px; top:11px; font-size:12px; font-weight:600; padding:4px 10px; border-radius:3px;
+  color:#fff; background:var(--gn); z-index:4}
+.chip.watch{background:var(--am)} .chip.alert{background:var(--rd)}
+.tag{position:absolute; z-index:3; pointer-events:none; width:162px; color:#E6ECEE;
+  background:rgba(12,18,21,.92); border:1px solid #2A363B; border-left-width:3px; border-radius:3px; padding:6px 9px}
+.tag b{display:block; font-weight:600; font-size:12px; line-height:1.25}
+.tag i{display:block; font-style:normal; font-size:11px; color:#8B9AA1; margin-top:1px}
+.tag u{display:block; text-decoration:none; font-family:"IBM Plex Mono",monospace; font-size:12px;
+  margin-top:3px; font-variant-numeric:tabular-nums}
+.bodyside{display:flex; flex-direction:column; gap:12px; height:100%; overflow-y:auto; padding-right:4px}
+.bodyside > *{flex-shrink:0}
+@media(max-width:1000px){
+  .bodylay{grid-template-columns:1fr; height:auto}
+  .stage{height:72vh}
+  .bodyside{height:auto; overflow:visible}
+}
+.detail{padding:12px 13px; font-size:14px; color:var(--dim); min-height:74px}
+.detail b{display:block; font-weight:600; font-size:15px; color:var(--ink); margin-bottom:3px}
+.tl{display:flex; flex-direction:column}
+.tl .s{display:grid; grid-template-columns:auto 1fr; gap:11px; padding:8px 13px;
+  border-bottom:1px solid var(--line); opacity:.4}
+.tl .s:last-child{border-bottom:0}
+.tl .s.live{opacity:1} .tl .s.done{opacity:.75}
+.tl .s.live .k{background:var(--rd); border-color:var(--rd); color:#fff}
+.tl .s.done .k{background:var(--gn); border-color:var(--gn); color:#fff}
+.tl .k{width:19px; height:19px; border-radius:50%; border:1.5px solid var(--line2);
+  display:flex; align-items:center; justify-content:center;
+  font-family:"IBM Plex Mono",monospace; font-size:10px; margin-top:1px; color:var(--dim)}
+.tl .w b{display:block; font-weight:600; font-size:13.5px; line-height:1.3}
+.tl .w span{display:block; font-size:12.5px; color:var(--dim); margin-top:1px}
+.acts{display:flex; gap:8px; padding:10px 13px; border-top:1px solid var(--line); background:var(--panel2)}
+.acts .btn{flex:1}
+.acts .btn.help{background:var(--rd); border-color:var(--rd); color:#fff}
+.acts[hidden], .phone[hidden]{display:none!important}
+.phone{margin:0; padding:11px 13px; border-top:1px solid var(--line); background:var(--accent-soft); font-size:13px; color:var(--dim)}
+.phone b{display:block; font-weight:600; color:var(--accent); margin-bottom:2px}
+.sw{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:1px}
+.bodyside .ctl .seg button{padding:5px 9px}
+.chain-t{font-size:12.5px; font-weight:500; color:var(--accent); margin:2px 0 8px}
+ol.chain{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:2px; counter-reset:c}
+ol.chain li{counter-increment:c; display:grid; grid-template-columns:20px 1fr; column-gap:9px;
+  padding:6px 7px; border-radius:3px; opacity:.45; cursor:pointer}
+ol.chain li::before{content:counter(c); grid-row:span 2; width:19px; height:19px; border-radius:50%;
+  border:1.5px solid var(--line2); display:flex; align-items:center; justify-content:center;
+  font-family:"IBM Plex Mono",monospace; font-size:10px; color:var(--dim)}
+ol.chain li b{font-weight:600; font-size:13.5px; color:var(--ink); margin:0; display:block}
+ol.chain li span{font-size:12.8px; color:var(--dim); line-height:1.45}
+ol.chain li:hover{background:var(--panel2)}
+ol.chain li.done{opacity:.75}
+ol.chain li.done::before{background:var(--gn); border-color:var(--gn); color:#fff}
+ol.chain li.on{opacity:1; background:var(--accent-soft)}
+ol.chain li.on::before{background:var(--accent); border-color:var(--accent); color:#fff}
+
+/* full window: menu, page header and footer hidden */
+#app.focus{grid-template-columns:1fr}
+#app.focus aside, #app.focus .hd, #app.focus .foot{display:none}
+#app.focus main{padding:10px 12px}
+#app.focus .bodylay{height:calc(100vh - 122px)}
+</style>
+
+<div class="strip">Simulation: no hardware connected</div>
+
+<div id="app" class="on">
+  <aside>
+    <div class="proj">
+      <div class="name">RespiGuard</div>
+      <p>A chest-worn monitor that listens for wheeze and checks SpO2, heart rate and breathing against the wearer's own baseline.</p>
+      <p class="team">Team Codeaxis<br>SIH26181</p>
+    </div>
+    <nav id="nav">
+      <button data-p="overview" aria-current="true">Overview</button>
+      <button data-p="body">On the body</button>
+      <button data-p="resp">Breath sound</button>
+      <button data-p="fusion">Scoring</button>
+      <button data-p="sensors">Hardware</button>
+      <button data-p="events">Events</button>
+      <button data-p="tech">About</button>
+    </nav>
+  </aside>
+
+  <main>
+    <div class="hd">
+      <h1 id="pageTitle">Overview</h1>
+      <div class="r"><span class="status" id="runBadge">Running</span><span id="clock">00:00:00</span></div>
+    </div>
+
+    <div class="ctl">
+      <span class="lb">Scenario</span>
+      <span class="seg" id="scen">
+        <button data-s="normal" aria-pressed="true">Normal breathing</button>
+        <button data-s="active">Elevated activity</button>
+        <button data-s="wheeze">Possible wheeze</button>
+        <button data-s="recovery">Recovery</button>
+      </span>
+      <span class="lb">Speed</span>
+      <span class="seg" id="spd">
+        <button data-x="0.5">0.5&times;</button>
+        <button data-x="1" aria-pressed="true">1&times;</button>
+        <button data-x="2">2&times;</button>
+      </span>
+      <button class="btn sm" id="pause">Pause</button>
+      <button class="btn sm" id="reset">Reset</button>
+    </div>
+
+    <section class="page on" id="pg-overview">
+      <div class="grid g5" id="tele"></div>
+
+      <div class="grid g2" style="margin-top:12px">
+        <div class="card">
+          <h2>Breath sound <small>INMP441, 4 kHz</small></h2>
+          <canvas class="wide" id="wave" style="height:150px"></canvas>
+        </div>
+        <div class="card">
+          <h2>Risk score</h2>
+          <div class="rows" id="score"></div>
+          <div class="tot"><span class="st" id="stateName">Normal</span><span class="n" id="total">0</span></div>
+        </div>
+      </div>
+
+      <div class="grid g3" style="margin-top:12px">
+        <div class="card">
+          <h2>Wheeze classifier</h2>
+          <div class="big">
+            <div class="s" id="clsName">No abnormal pattern</div>
+            <div class="c" id="clsConf">0.06</div>
+            <div class="l">Wheeze probability. Counts above 0.50.</div>
+          </div>
+          <div class="meter"><i id="clsBar"></i></div>
+          <div class="rows">
+            <div class="row"><span>Result</span><span class="n" id="clsTag">NORMAL</span></div>
+            <div class="row"><span>Model size</span><span class="n">61,041 weights, 238 KB</span></div>
+            <div class="row"><span>Runs on</span><span>ESP32-S3</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Environment <small>BME680</small></h2>
+          <div class="rows" id="envRows"></div>
+        </div>
+        <div class="card">
+          <h2>Events</h2>
+          <div class="ev" id="evList"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="pg-body">
+      <div class="bodylay">
+        <div class="stage" id="stage">
+          <svg class="leads" id="leads"></svg>
+          <div class="ov chip" id="chip">Normal</div>
+          <div class="ov hint">Drag to turn. Scroll to zoom. Click a part to see how it works.</div>
+        </div>
+
+        <div class="bodyside">
+          <div class="ctl" style="margin:0">
+            <button class="btn sm pri" id="tourBtn" aria-pressed="false">&#9654; Explain it step by step</button>
+            <button class="btn sm" id="focusBtn" aria-pressed="false">&#10530; Full window</button>
+            <span class="lb">Show</span>
+            <span class="seg" id="layers">
+              <button data-l="skin" aria-pressed="true">Skin</button>
+              <button data-l="ribs" aria-pressed="true">Ribs</button>
+              <button data-l="organs" aria-pressed="true">Organs</button>
+              <button data-l="wiring" aria-pressed="true">Wiring</button>
+            </span>
+            <button class="btn sm" id="explode" aria-pressed="false">Exploded view</button>
+            <button class="btn sm" id="resetView">Reset view</button>
+            <button class="btn sm" id="micBtn">Use my microphone</button>
+          </div>
+
+          <div class="card">
+            <h2>How it works</h2>
+            <div class="detail" id="detail"><b>Nothing selected</b>Click a part in the 3D view, or press Explain it step by step.</div>
+          </div>
+
+          <div class="card">
+            <h2>Wiring</h2>
+            <div class="rows">
+              <div class="row"><span><i class="sw" style="background:#48C4D6"></i><i class="sw" style="background:#2E7FBF"></i>I2C bus: MAX30102, BMI270, BME680, OLED</span><span class="n">SDA 8, SCL 9</span></div>
+              <div class="row"><span><i class="sw" style="background:#D2A044"></i>I2S: INMP441 microphone</span><span class="n">BCLK 4, WS 5, SD 6</span></div>
+              <div class="row"><span><i class="sw" style="background:#4CAE7C"></i><i class="sw" style="background:#D3584B"></i>Status LEDs, green and red</span><span class="n">15, 16</span></div>
+              <div class="row"><span><i class="sw" style="background:#B08BE0"></i>Vibration motor, through a 2N2222</span><span class="n">17</span></div>
+              <div class="row"><span><i class="sw" style="background:#C7CED1"></i>Button, internal pull-up</span><span class="n">18</span></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>After an alert</h2>
+            <div class="tl" id="tl"></div>
+            <div class="acts" id="acts" hidden>
+              <button class="btn sm" id="imok">I'm OK</button>
+              <button class="btn sm help" id="needhelp">Need help</button>
+            </div>
+            <p class="phone" id="phone" hidden><b>Caregiver's phone</b><span id="phoneMsg"></span></p>
+          </div>
+
+          <div class="card">
+            <h2>Score right now</h2>
+            <div class="rows" id="score2"></div>
+            <div class="tot"><span class="st" id="stateName2">Normal</span><span class="n" id="total2">0</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="pg-resp">
+      <div class="card">
+        <h2>Breath sound <small>simulated, 4 kHz</small></h2>
+        <canvas class="wide" id="wave2" style="height:132px"></canvas>
+      </div>
+
+      <div class="grid g2" style="margin-top:12px">
+        <div class="card">
+          <h2>Spectrum <small>256-point FFT, 15.6 Hz per bin</small></h2>
+          <canvas class="wide" id="spectrum" style="height:186px"></canvas>
+        </div>
+        <div class="card">
+          <h2>Spectrogram <small>time left to right, 0 to 2 kHz upward</small></h2>
+          <canvas class="wide" id="spectro" style="height:186px"></canvas>
+        </div>
+      </div>
+
+      <div class="prose" style="margin-top:20px">
+        <h3>What this shows</h3>
+        <p>The waveform comes from the simulation. The spectrum and spectrogram are not drawn by hand. They are computed from the waveform with a 256-point FFT at 4 kHz, the same settings our training script uses.</p>
+        <p>A wheeze shows up as a thin line that stays at one frequency. Normal breath noise is spread out along the bottom. Pick <b>Possible wheeze</b> above and a line appears near 350 Hz.</p>
+        <h3>Why 4 kHz</h3>
+        <p>Most wheeze energy is between 100 Hz and 1 kHz. The chest wall filters out most sound above 1 kHz before it reaches the skin. Sampling at 4 kHz records everything up to 2 kHz, which covers that range.</p>
+        <p>The classifier was trained on 4 kHz audio, so the device has to record at 4 kHz as well. If the rates do not match, the model's output means nothing.</p>
+      </div>
+    </section>
+
+    <section class="page" id="pg-fusion">
+      <div class="card">
+        <h2>Scoring</h2>
+        <div class="bd" style="padding:6px">
+          <svg viewBox="0 0 940 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Five sensor readings go into one score, which sets Normal, Watch or Alert">
+            <defs><marker id="fm" markerWidth="8" markerHeight="8" refX="6" refY="2.8" orient="auto">
+              <path d="M0,0 L6,2.8 L0,5.6 Z" fill="#2F7F86"/></marker></defs>
+            <g id="fusionRows"></g>
+            <rect x="452" y="128" width="176" height="74" rx="4" fill="#E2EFEF" stroke="#2F7F86" stroke-width="1.2"/>
+            <text class="st-lbl" x="540" y="161" text-anchor="middle" fill="#2F7F86">Scoring</text>
+            <text class="st-sub" x="540" y="179" text-anchor="middle">against personal baseline</text>
+            <line x1="634" y1="165" x2="700" y2="165" stroke="#2F7F86" stroke-width="1.5" marker-end="url(#fm)"/>
+            <rect x="708" y="133" width="216" height="64" rx="4" fill="#FFFFFF" stroke="#C8D1CE"/>
+            <text class="st-lbl" x="816" y="161" text-anchor="middle">Normal, Watch or Alert</text>
+            <text class="st-sub" x="816" y="179" text-anchor="middle">score 0 to 1, 2 to 3, 4 and up</text>
+            <text class="st-sub" id="fusionOut" x="816" y="222" text-anchor="middle" fill="#2F8A57">Normal &middot; score 0</text>
+            <g id="fusionDots"></g>
+          </svg>
+        </div>
+      </div>
+
+      <div class="grid g2" style="margin-top:12px; align-items:start">
+        <div class="card">
+          <h2>Score terms <small>same as the firmware</small></h2>
+          <div class="wrapt"><table>
+            <thead><tr><th>Condition</th><th>Points</th></tr></thead>
+            <tbody>
+              <tr><td>Wheeze probability above 0.50</td><td class="m">+2</td></tr>
+              <tr><td>SpO2 more than 3 points below baseline</td><td class="m">+2</td></tr>
+              <tr><td>Breathing rate more than 20% above baseline</td><td class="m">+1</td></tr>
+              <tr><td>Heart rate more than 15% above baseline</td><td class="m">+1</td></tr>
+              <tr><td>Moving (activity above 0.35) with no wheeze</td><td class="m">&minus;2</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+        <div class="prose">
+          <p>The total decides the state. 0 or 1 is <b>Normal</b>, 2 or 3 is <b>Watch</b>, 4 or more is <b>Alert</b>. A higher state shows straight away. A lower state only shows after the current one has lasted 4 seconds, the same as the firmware, so the screen does not flicker.</p>
+          <h3>Why movement takes points off</h3>
+          <p>Climbing stairs raises breathing rate and heart rate and can lower SpO2 a little. Without the &minus;2 that would look like an episode. Try <b>Elevated activity</b> above: breathing and heart rate each add 1, movement takes 2 off, and the score stays at 0.</p>
+          <p>Breathing rate and heart rate are worth 1 point each, so on their own they cannot reach Alert.</p>
+          <h3>Environment</h3>
+          <p>Temperature and humidity are not part of the score. They are saved with each event.</p>
+          <p>We have not tested yet whether combining these sensors works better than one sensor alone. That is what we want to measure once the hardware is built.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="pg-sensors">
+      <div class="card">
+        <h2>Hardware plan <small>not assembled yet</small></h2>
+        <div class="bd" style="padding:6px">
+          <svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Four sensors connect to the ESP32-S3, which drives the outputs">
+            <defs><marker id="sm" markerWidth="8" markerHeight="8" refX="6" refY="2.8" orient="auto">
+              <path d="M0,0 L6,2.8 L0,5.6 Z" fill="#2F7F86"/></marker></defs>
+            <g id="archRows"></g>
+            <path d="M300,52 L352,52 L352,150" fill="none" stroke="#C8D1CE" stroke-width="1.3"/>
+            <path d="M300,110 L352,110 L352,150" fill="none" stroke="#C8D1CE" stroke-width="1.3"/>
+            <path d="M300,168 L352,168 L352,150" fill="none" stroke="#C8D1CE" stroke-width="1.3"/>
+            <path d="M300,226 L352,226 L352,150" fill="none" stroke="#C8D1CE" stroke-width="1.3"/>
+            <line x1="352" y1="150" x2="424" y2="150" stroke="#2F7F86" stroke-width="1.5" marker-end="url(#sm)"/>
+            <rect x="432" y="118" width="164" height="64" rx="4" fill="#E2EFEF" stroke="#2F7F86" stroke-width="1.2"/>
+            <text class="st-lbl" x="514" y="146" text-anchor="middle" fill="#2F7F86">ESP32-S3</text>
+            <text class="st-sub" x="514" y="164" text-anchor="middle">classifier and score</text>
+            <line x1="602" y1="150" x2="668" y2="150" stroke="#2F7F86" stroke-width="1.5" marker-end="url(#sm)"/>
+            <rect x="676" y="118" width="200" height="64" rx="4" fill="#FFFFFF" stroke="#C8D1CE"/>
+            <text class="st-lbl" x="776" y="146" text-anchor="middle">Outputs</text>
+            <text class="st-sub" x="776" y="164" text-anchor="middle">screen, LEDs, motor</text>
+            <g id="archDots"></g>
+          </svg>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h2>Parts</h2>
+        <div class="wrapt"><table>
+          <thead><tr><th>Part</th><th>Job</th><th>Bus</th><th>Rate</th></tr></thead>
+          <tbody>
+            <tr><td><b>ESP32-S3</b></td><td>Runs the classifier, the score and the alerts</td><td class="m">n/a</td><td class="m">n/a</td></tr>
+            <tr><td><b>INMP441</b></td><td>Records breath sound through the chest</td><td class="m">I2S</td><td class="m">4 kHz</td></tr>
+            <tr><td><b>MAX30102</b></td><td>SpO2, heart rate and breathing rate</td><td class="m">I2C</td><td class="m">100 Hz</td></tr>
+            <tr><td><b>BMI270</b></td><td>Movement</td><td class="m">I2C</td><td class="m">100 Hz</td></tr>
+            <tr><td><b>BME680</b></td><td>Temperature and humidity</td><td class="m">I2C</td><td class="m">1 Hz</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+
+      <div class="note" style="margin-top:14px"><b>Status</b>The board is not assembled yet, so everything on this site uses simulated data. The simulation gives the panels the same values the device will send, so the real ESP32 can take its place later without changing the panels.</div>
+    </section>
+
+    <section class="page" id="pg-events">
+      <div class="card">
+        <h2>Events</h2>
+        <div class="ev" id="evFull" style="max-height:none"></div>
+      </div>
+      <p class="small">Only real changes are logged: scenario, risk state, classifier result, the wearer's answer and the caregiver alert.</p>
+    </section>
+
+    <section class="page" id="pg-tech">
+      <div class="card">
+        <h2>Pipeline</h2>
+        <div class="bd" style="padding:6px">
+          <svg viewBox="0 0 900 130" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Capture, features, classifier, score, output">
+            <defs><marker id="tm" markerWidth="8" markerHeight="8" refX="6" refY="2.8" orient="auto">
+              <path d="M0,0 L6,2.8 L0,5.6 Z" fill="#2F7F86"/></marker></defs>
+            <g id="stageRow"></g>
+          </svg>
+        </div>
+      </div>
+
+      <div class="prose" style="margin-top:18px">
+        <p>RespiGuard is a chest-worn device we are building for SIH26181. It records breath sound and reads SpO2, heart rate and breathing rate at the chest. The ESP32-S3 turns these into features, runs a small wheeze classifier, and compares everything with the wearer's own baseline.</p>
+        <h3>Why a personal baseline</h3>
+        <p>Normal resting SpO2 is 99% for some people and 95% for others. One fixed limit would be wrong for one of them. So the device first learns each wearer's normal values and then scores changes from those.</p>
+        <h3>What it does not do</h3>
+        <p>It gives a wheeze probability and a risk level. It does not diagnose anything and does not suggest treatment. On an alert it tells the wearer to stop, rest and follow the plan their doctor gave them.</p>
+        <h3>Accuracy</h3>
+        <p>We do not have accuracy numbers of our own yet. The classifier has not been tested on our hardware.</p>
+        <h3>Switching to real hardware</h3>
+        <p>The simulation produces one set of values per frame: SpO2, heart rate, breathing rate, wheeze probability, activity, temperature, humidity, score and state. Every panel reads only those values. When the device is ready it will provide the same values, and the panels stay as they are.</p>
+      </div>
+    </section>
+
+    <footer class="foot">RespiGuard is a student prototype, not a medical device. The readings on this site are simulated and must not be used for medical decisions.</footer>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // SIMULATION ENGINE One state object, one tick.
+
+  var SR = 4000, N = 256;              // 4 kHz, 256-point FFT -> 15.6 Hz bins
+
+  // Smooth value noise: interpolate between random control points rather than calling Math.random() per.
+  function Noise(seed, rate){
+    this.a = Math.random(); this.b = Math.random(); this.t = 0; this.rate = rate;
+  }
+  Noise.prototype.step = function(dt){
+    this.t += dt * this.rate;
+    while (this.t >= 1){ this.t -= 1; this.a = this.b; this.b = Math.random(); }
+    var s = this.t * this.t * (3 - 2 * this.t);       // smoothstep
+    return this.a + (this.b - this.a) * s;
+  };
+
+  function clamp(v, a, b){ return v < a ? a : v > b ? b : v; }
+
+  var SCENARIOS = {
+    normal:   {label:"Normal Breathing",  spo2:98.4, hr:75,  rr:14.2, wz:0.05, mot:0.03},
+    active:   {label:"Elevated Activity", spo2:96.6, hr:113, rr:23.5, wz:0.08, mot:0.72},
+    wheeze:   {label:"Possible Wheeze",   spo2:94.1, hr:101, rr:25.0, wz:0.83, mot:0.04},
+    recovery: {label:"Recovery"}
+  };
+  // Recovery is a trajectory rather than a fixed point: it starts from wherever the physiology is when it is.
+  var RECOVERY_S = 30;
+  // The firmware's ALERT_HOLD_MS: a rising state is taken at once, a calming one only after the current.
+  var HOLD_S = 4;
+  var RANK = { Normal:0, Watch:1, Alert:2 };
+
+  var engine = {
+    t: 0, running: true, speed: 1, scenario: "normal", scenT: 0, micWheeze: null,
+    base: { spo2: 98.0, hr: 73, rr: 14.0 },
+    // the underlying physiology, which moves smoothly toward the scenario
+    core: { spo2: 98.4, hr: 75, rr: 14.2, wz: 0.05, mot: 0.03 },
+    recFrom: null,
+    // what a sensor would report: that physiology plus slow measurement noise
+    s: { spo2: 98.4, hr: 75, rr: 14.2, wheeze: 0.05, motion: 0.03,
+         temp: 29.4, hum: 56, pres: 1008.4, motionLabel: "Resting",
+         score: 0, state: "Normal", stateT: 0, classification: "NORMAL" },
+    // separate noise generators so signals drift independently
+    n: { spo2:new Noise(1,0.22), hr:new Noise(2,0.5), rr:new Noise(3,0.32),
+         wz:new Noise(4,0.9), mot:new Noise(5,0.7),
+         temp:new Noise(6,0.05), hum:new Noise(7,0.05), pres:new Noise(8,0.03) },
+    phase: { breath: 0 },
+
+    setScenario: function(k){
+      if (!SCENARIOS[k] || k === this.scenario) return;
+      this.scenario = k; this.scenT = 0;
+      if (k === "recovery"){
+        var c = this.core;
+        this.recFrom = { spo2:c.spo2, hr:c.hr, rr:c.rr, wz:c.wz, mot:c.mot };
+      }
+      emit("Scenario set to " + SCENARIOS[k].label.toLowerCase(), "cy");
+    },
+
+    target: function(){
+      if (this.scenario !== "recovery") return SCENARIOS[this.scenario];
+      var a = this.recFrom, b = SCENARIOS.normal;
+      var p = Math.min(1, this.scenT / RECOVERY_S);
+      p = p * p * (3 - 2 * p);
+      return { spo2: a.spo2 + (b.spo2 - a.spo2) * p, hr: a.hr + (b.hr - a.hr) * p,
+               rr:   a.rr   + (b.rr   - a.rr)   * p, wz: a.wz + (b.wz - a.wz) * p,
+               mot:  a.mot  + (b.mot  - a.mot)  * p };
+    },
+
+    reset: function(){
+      this.t = 0; this.scenT = 0;
+      this.scenario = "normal";
+      var g = SCENARIOS.normal, c = this.core;
+      c.spo2 = g.spo2; c.hr = g.hr; c.rr = g.rr; c.wz = g.wz; c.mot = g.mot;
+      this.s.state = "Normal"; this.s.stateT = 0;
+      hist.spo2.length = 0; hist.hr.length = 0; hist.rr.length = 0; hist.wz.length = 0;
+      evClear();
+      emit("Simulation reset", "");
+      paintScenario();
+    },
+
+    tick: function(dtReal){
+      if (!this.running) return;
+      var dt = dtReal * this.speed;
+      this.t += dt; this.scenT += dt;
+
+      var g = this.target(), s = this.s, n = this.n, c = this.core;
+      var mic = this.micWheeze;
+
+      // The physiology approaches the scenario, and the noise rides on top of it as an offset.
+      var k = 1 - Math.exp(-dt * 0.55);
+      c.spo2 += (g.spo2 - c.spo2) * k;
+      c.hr   += (g.hr   - c.hr  ) * k;
+      c.rr   += (g.rr   - c.rr  ) * k;
+      // A live microphone, if the viewer grants one, replaces the scenario's wheeze term with one measured from.
+      c.wz  += ((mic === null ? g.wz : mic) - c.wz) * (1 - Math.exp(-dt * (mic === null ? 0.9 : 4.0)));
+      c.mot += (g.mot - c.mot) * (1 - Math.exp(-dt * 1.1));
+
+      s.spo2   = clamp(c.spo2 + (n.spo2.step(dt) - 0.5) * 0.5, 88, 100);
+      s.hr     = c.hr + (n.hr.step(dt) - 0.5) * 3.0;
+      s.rr     = c.rr + (n.rr.step(dt) - 0.5) * 0.9;
+      s.wheeze = clamp(c.wz + (mic === null ? (n.wz.step(dt) - 0.5) * 0.06 : 0), 0, 1);
+      s.motion = clamp(c.mot + (n.mot.step(dt) - 0.5) * 0.05, 0, 1);
+
+      s.temp = 29.4 + (n.temp.step(dt) - 0.5) * 2.2;
+      s.hum  = 56   + (n.hum.step(dt)  - 0.5) * 7;
+      s.pres = 1008.4 + (n.pres.step(dt) - 0.5) * 2.4;
+      s.motionLabel = s.motion > 0.45 ? "Walking" : s.motion > 0.18 ? "Settling" : "Resting";
+
+      this.phase.breath += dt * (s.rr / 60) * Math.PI * 2;
+
+      // scoring: exactly the arithmetic in the firmware
+      var terms = this.terms(), total = 0;
+      for (var i = 0; i < terms.length; i++) total += terms[i].p;
+      if (total < 0) total = 0;
+      s.score = total;
+      s.stateT += dt;
+      var st = total >= 4 ? "Alert" : total >= 2 ? "Watch" : "Normal";
+      var calming = RANK[st] < RANK[s.state];
+      if (st !== s.state && !(calming && s.stateT < HOLD_S)){
+        s.state = st; s.stateT = 0;
+        emit("Respiratory risk trend now " + st.toLowerCase() + " (score " + total + ")",
+             st === "Alert" ? "rd" : st === "Watch" ? "am" : "gn");
+      }
+      var cls = s.wheeze > 0.50 ? "POSSIBLE WHEEZE" : s.wheeze > 0.32 ? "UNCERTAIN" : "NORMAL";
+      if (cls !== s.classification){
+        s.classification = cls;
+        emit(cls === "POSSIBLE WHEEZE" ? "Possible wheeze pattern detected"
+           : cls === "UNCERTAIN" ? "Acoustic classification uncertain"
+           : "Acoustic pattern back within normal range",
+             cls === "POSSIBLE WHEEZE" ? "am" : "");
+      }
+    },
+
+    terms: function(){
+      var s = this.s, b = this.base;
+      var w = s.wheeze > 0.50, d = s.spo2 < b.spo2 - 3.0;
+      var r = s.rr > b.rr * 1.20, h = s.hr > b.hr * 1.15, m = s.motion > 0.35;
+      return [
+        {n:"Wheeze heard", p: w ? 2 : 0, on: w},
+        {n:"Oxygen more than 3 points below baseline", p: d ? 2 : 0, on: d},
+        {n:"Breathing 20% above baseline", p: r ? 1 : 0, on: r},
+        {n:"Heart 15% above baseline", p: h ? 1 : 0, on: h},
+        {n:"Moving, with no wheeze to explain it", p: (m && !w) ? -2 : 0, on: (m && !w), veto: true}
+      ];
+    },
+
+    // 64 ms of simulated acoustic signal, built from the current state.
+    audioFrame: function(buf){
+      var s = this.s, swell = 0.40 + 0.60 * Math.max(0, Math.sin(this.phase.breath));
+      var turb = 0.55 + 0.85 * s.motion;
+      for (var i = 0; i < buf.length; i++){
+        var tt = (this.t + i / SR);
+        var v = 0;
+        v += (Math.random() * 2 - 1) * 0.30 * swell * turb;            // broadband
+        v += Math.sin(2*Math.PI*95*tt) * 0.16 * swell;                 // low body
+        if (s.wheeze > 0.15){
+          var a = (s.wheeze - 0.15) / 0.85;
+          v += Math.sin(2*Math.PI*352*tt) * 0.42 * a * swell;
+          v += Math.sin(2*Math.PI*704*tt) * 0.15 * a * swell;
+        }
+        buf[i] = v;
+      }
+    }
+  };
+
+  // FFT (radix-2)
+  var fre = new Float32Array(N), fim = new Float32Array(N);
+  function fft(re, im){
+    var n = re.length, i, j, bit;
+    for (i = 1, j = 0; i < n; i++){
+      bit = n >> 1;
+      for (; j & bit; bit >>= 1) j ^= bit;
+      j ^= bit;
+      if (i < j){ var tr = re[i]; re[i] = re[j]; re[j] = tr;
+                  var ti = im[i]; im[i] = im[j]; im[j] = ti; }
+    }
+    for (var len = 2; len <= n; len <<= 1){
+      var ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
+      for (i = 0; i < n; i += len){
+        var cr = 1, ci = 0;
+        for (var k = 0; k < len / 2; k++){
+          var ur = re[i+k], ui = im[i+k];
+          var xr = re[i+k+len/2], xi = im[i+k+len/2];
+          var vr = xr*cr - xi*ci, vi = xr*ci + xi*cr;
+          re[i+k] = ur+vr; im[i+k] = ui+vi;
+          re[i+k+len/2] = ur-vr; im[i+k+len/2] = ui-vi;
+          var nr = cr*wr - ci*wi; ci = cr*wi + ci*wr; cr = nr;
+        }
+      }
+    }
+  }
+  var HALF = N >> 1;
+  var mag = new Float32Array(HALF), magS = new Float32Array(HALF);
+  var audio = new Float32Array(N);
+
+  function analyse(){
+    engine.audioFrame(audio);
+    for (var i = 0; i < N; i++){
+      var w = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1));   // Hann
+      fre[i] = audio[i] * w; fim[i] = 0;
+    }
+    fft(fre, fim);
+    for (var b = 0; b < HALF; b++){
+      var m = Math.sqrt(fre[b]*fre[b] + fim[b]*fim[b]) / (N / 4);
+      mag[b] = Math.min(1, Math.pow(m, 0.55));
+      magS[b] += (mag[b] - magS[b]) * 0.35;
+    }
+  }
+
+  // events
+  var events = [];
+  function two(n){ return (n < 10 ? "0" : "") + n; }
+  function stamp(){
+    var s = Math.floor(engine.t);
+    return two(Math.floor(s / 3600) % 24) + ":" + two(Math.floor(s / 60) % 60) + ":" + two(s % 60);
+  }
+  function emit(text, tone){
+    events.unshift({ t: stamp(), text: text, tone: tone || "" });
+    if (events.length > 60) events.pop();
+    renderEvents();
+  }
+  function evClear(){ events.length = 0; renderEvents(); }
+  var COL = { cy:"#2F7F86", gn:"#2F8A57", am:"#B7791F", rd:"#C2453A", "":"#9AA6AC" };
+  function renderEvents(){
+    ["evList","evFull"].forEach(function(id){
+      var host = document.getElementById(id); if (!host) return;
+      var lim = id === "evList" ? 9 : events.length;
+      var h = "";
+      for (var i = 0; i < Math.min(lim, events.length); i++){
+        var e = events[i];
+        h += '<div class="e' + (i === 0 ? " new" : "") + '"><time>' + e.t +
+             '</time><i style="background:' + COL[e.tone] + '"></i><span>' + e.text + '</span></div>';
+      }
+      host.innerHTML = h || '<div class="e"><time>--:--</time><i></i><span>Waiting for the simulation to start.</span></div>';
+    });
+  }
+
+
+  // telemetry cards
+  var TELE = [
+    {k:"SpO2", u:"%", sim:true,
+     v:function(){return engine.s.spo2.toFixed(1);},
+     b:function(){var d = engine.s.spo2 - engine.base.spo2;
+        return "baseline " + engine.base.spo2.toFixed(1) + " &middot; <b>" +
+        (d >= 0 ? "+" : "") + d.toFixed(1) + "</b>";},
+     hit:function(){return engine.s.spo2 < engine.base.spo2 - 3.0;}, h:"spo2"},
+    {k:"Heart rate", u:"bpm", sim:true,
+     v:function(){return engine.s.hr.toFixed(0);},
+     b:function(){var p = (engine.s.hr / engine.base.hr - 1) * 100;
+        return "baseline " + engine.base.hr + " &middot; <b>" + (p >= 0 ? "+" : "") + p.toFixed(0) + "%</b>";},
+     hit:function(){return engine.s.hr > engine.base.hr * 1.15;}, h:"hr"},
+    {k:"Respiratory rate", u:"/min", sim:true,
+     v:function(){return engine.s.rr.toFixed(1);},
+     b:function(){var p = (engine.s.rr / engine.base.rr - 1) * 100;
+        return "baseline " + engine.base.rr.toFixed(1) + " &middot; <b>" + (p >= 0 ? "+" : "") + p.toFixed(0) + "%</b>";},
+     hit:function(){return engine.s.rr > engine.base.rr * 1.20;}, h:"rr"},
+    {k:"Motion", u:"", sim:true,
+     v:function(){return engine.s.motionLabel;},
+     b:function(){return "activity <b>" + engine.s.motion.toFixed(2) + "</b> &middot; veto above 0.35";},
+     hit:function(){return false;}, h:null, txt:true},
+    {k:"Wheeze probability", u:"", sim:true,
+     v:function(){return engine.s.wheeze.toFixed(2);},
+     b:function(){return "fires at <b>0.50</b>";},
+     hit:function(){return engine.s.wheeze > 0.50;}, h:"wz"}
+  ];
+  var hist = { spo2:[], hr:[], rr:[], wz:[] };
+  var teleEls = [];
+  (function(){
+    var host = document.getElementById("tele");
+    TELE.forEach(function(d){
+      var e = document.createElement("div");
+      e.className = "card tele";
+      e.innerHTML = '<div class="k"><span>' + d.k + '</span></div>' +
+        '<div class="v" data-v>--' + (d.u ? '<small>' + d.u + '</small>' : '') + '</div>' +
+        '<div class="b" data-b></div>' + (d.h ? '<canvas data-c></canvas>' : '');
+      host.appendChild(e); teleEls.push(e);
+    });
+  })();
+
+  function spark(cv, arr, hot){
+    var w = cv.clientWidth || 160, h = 30;
+    if (cv.width !== w * 2){ cv.width = w * 2; cv.height = h * 2; }
+    var g = cv.getContext("2d");
+    g.setTransform(2,0,0,2,0,0);
+    g.clearRect(0,0,w,h);
+    if (arr.length < 2) return;
+    var mn = Infinity, mx = -Infinity, i;
+    for (i = 0; i < arr.length; i++){ if (arr[i] < mn) mn = arr[i]; if (arr[i] > mx) mx = arr[i]; }
+    if (mx - mn < 1e-6){ mx = mn + 1; }
+    g.strokeStyle = hot ? "#B7791F" : "#2F7F86";
+    g.lineWidth = 1.2; g.beginPath();
+    for (i = 0; i < arr.length; i++){
+      var x = i / (arr.length - 1) * w;
+      var y = h - 2 - ((arr[i] - mn) / (mx - mn)) * (h - 5);
+      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    }
+    g.stroke();
+  }
+
+  // score panel
+  var scoreHost = document.getElementById("score");
+  engine.terms().forEach(function(t){
+    var d = document.createElement("div");
+    d.className = "row";
+    d.innerHTML = '<span>' + t.n + '</span><span class="pts off" data-p>0</span>';
+    scoreHost.appendChild(d);
+  });
+  var ptsEls = scoreHost.querySelectorAll("[data-p]");
+
+  // env rows
+  var ENV = [
+    {k:"Temperature", v:function(){return engine.s.temp.toFixed(1) + " °C";}},
+    {k:"Humidity",    v:function(){return engine.s.hum.toFixed(0) + " %";}},
+    {k:"Pressure",    v:function(){return engine.s.pres.toFixed(1) + " hPa";}},
+    {k:"Sensor",      v:function(){return "BME680";}}
+  ];
+  (function(){
+    var h = document.getElementById("envRows");
+    ENV.forEach(function(e){
+      var d = document.createElement("div"); d.className = "row";
+      d.innerHTML = '<span>' + e.k + '</span><span class="n" data-e></span>';
+      h.appendChild(d);
+    });
+  })();
+  var envEls = document.querySelectorAll("#envRows [data-e]");
+
+  // scoring / hardware diagrams
+  var FUSE = [
+    {n:"Microphone",      s:"wheeze probability, +2",           y:44,  c:"#B7791F"},
+    {n:"MAX30102 oxygen", s:"SpO2 vs baseline, +2",             y:104, c:"#6B4FA8"},
+    {n:"MAX30102 pulse",  s:"heart and breathing rate, +1 each", y:164, c:"#C2453A"},
+    {n:"BMI270",          s:"movement, can take 2 off",         y:224, c:"#2F7F86"},
+    {n:"BME680",          s:"logged, not scored",               y:284, c:"#7C8A91"}
+  ];
+  (function(){
+    var g = document.getElementById("fusionRows"), h = "";
+    FUSE.forEach(function(f){
+      h += '<rect x="16" y="' + (f.y - 22) + '" width="248" height="44" rx="4" fill="#FFFFFF" stroke="#C8D1CE"/>' +
+           '<text class="st-lbl" x="30" y="' + (f.y - 3) + '">' + f.n + '</text>' +
+           '<text class="st-sub" x="30" y="' + (f.y + 13) + '">' + f.s + '</text>' +
+           '<path d="M266,' + f.y + ' C350,' + f.y + ' 372,165 452,165" fill="none" stroke="#C8D1CE" stroke-width="1.2"/>';
+    });
+    g.innerHTML = h;
+  })();
+
+  var ARCH = [
+    {n:"INMP441",  s:"I2S, GPIO 4, 5, 6",   y:52},
+    {n:"MAX30102", s:"I2C 0x57, GPIO 8, 9", y:110},
+    {n:"BMI270",   s:"I2C 0x68, GPIO 8, 9", y:168},
+    {n:"BME680",   s:"I2C 0x76, GPIO 8, 9", y:226}
+  ];
+  (function(){
+    var g = document.getElementById("archRows"), h = "";
+    ARCH.forEach(function(a){
+      h += '<rect x="16" y="' + (a.y - 20) + '" width="284" height="40" rx="4" fill="#FFFFFF" stroke="#C8D1CE"/>' +
+           '<text class="st-lbl" x="30" y="' + (a.y - 2) + '">' + a.n + '</text>' +
+           '<text class="st-sub" x="30" y="' + (a.y + 13) + '">' + a.s + '</text>';
+    });
+    g.innerHTML = h;
+  })();
+
+  (function(){
+    var STAGES = ["Capture","Features","Classifier","Score","Output"];
+    var g = document.getElementById("stageRow"), h = "", x = 16;
+    STAGES.forEach(function(st, i){
+      var last = i === STAGES.length - 1;
+      h += '<rect x="' + x + '" y="40" width="150" height="50" rx="4" fill="' + (last ? "#E2EFEF" : "#FFFFFF") +
+           '" stroke="' + (last ? "#2F7F86" : "#C8D1CE") + '"/>' +
+           '<text class="st-lbl" x="' + (x + 75) + '" y="70" text-anchor="middle"' +
+           (last ? ' fill="#2F7F86"' : '') + '>' + st + '</text>';
+      if (!last) h += '<line x1="' + (x + 154) + '" y1="65" x2="' + (x + 176) +
+                      '" y2="65" stroke="#2F7F86" stroke-width="1.4" marker-end="url(#tm)"/>';
+      x += 180;
+    });
+    g.innerHTML = h;
+  })();
+
+  function dots(hostId, defs, phase){
+    var host = document.getElementById(hostId); if (!host) return;
+    var h = "";
+    defs.forEach(function(d, i){
+      var p = (phase + i * 0.17) % 1;
+      var x = d.x0 + (d.x1 - d.x0) * p;
+      var y = d.y0 + (d.y1 - d.y0) * (p * p * (3 - 2 * p));
+      h += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="2.6" fill="' +
+           d.c + '" opacity="' + (0.25 + Math.sin(p * Math.PI) * 0.75).toFixed(2) + '"/>';
+    });
+    host.innerHTML = h;
+  }
+  var FUSE_D = FUSE.map(function(f){ return {x0:270, x1:450, y0:f.y, y1:165, c:f.c}; });
+  var ARCH_D = ARCH.map(function(a){ return {x0:302, x1:352, y0:a.y, y1:a.y, c:"#2F7F86"}; });
+
+  // canvases
+  function fit(cv, hCss){
+    var w = cv.clientWidth || 400;
+    if (cv.width !== w * 2 || cv.height !== hCss * 2){ cv.width = w * 2; cv.height = hCss * 2; }
+    var g = cv.getContext("2d"); g.setTransform(2,0,0,2,0,0);
+    return { g: g, w: w, h: hCss };
+  }
+
+  var waveHist = [];
+  function drawWave(cv, hCss){
+    var o = fit(cv, hCss), g = o.g, w = o.w, h = o.h;
+    g.fillStyle = "#04080A"; g.fillRect(0,0,w,h);
+    g.strokeStyle = "#111A1D"; g.lineWidth = 1;
+    for (var yy = 0; yy <= 4; yy++){
+      var y = h * yy / 4; g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke();
+    }
+    var mid = h / 2, step = Math.max(1, Math.floor(waveHist.length / w));
+    g.strokeStyle = engine.s.wheeze > 0.5 ? "#D2A044" : "#48C4D6";
+    g.lineWidth = 1.15; g.beginPath();
+    for (var i = 0, x = 0; i < waveHist.length && x < w; i += step, x++){
+      var y2 = mid - waveHist[i] * (h * 0.42);
+      x ? g.lineTo(x, y2) : g.moveTo(x, y2);
+    }
+    g.stroke();
+  }
+
+  function drawSpectrum(){
+    var cv = document.getElementById("spectrum"); if (!cv.clientWidth) return;
+    var o = fit(cv, 186), g = o.g, w = o.w, h = o.h;
+    g.fillStyle = "#04080A"; g.fillRect(0,0,w,h);
+    g.strokeStyle = "#111A1D";
+    for (var k = 1; k < 4; k++){ var y = h*k/4; g.beginPath(); g.moveTo(0,y); g.lineTo(w,y); g.stroke(); }
+    var bw = w / HALF;
+    for (var b = 0; b < HALF; b++){
+      var v = magS[b], bh = v * (h - 16);
+      g.fillStyle = v > 0.55 ? "#D2A044" : "#2E7E8C";
+      g.fillRect(b * bw, h - bh - 12, Math.max(1, bw - 0.6), bh);
+    }
+    g.fillStyle = "#4E5A61"; g.font = "9px 'IBM Plex Mono', monospace";
+    [0, 500, 1000, 1500, 2000].forEach(function(f){
+      var x = (f / 2000) * w;
+      g.fillText(f === 0 ? "0" : (f/1000).toFixed(1) + "k", Math.min(x + 2, w - 20), h - 2);
+    });
+  }
+
+  var spectroCv = null, spectroCtx = null;
+  function drawSpectro(){
+    var cv = document.getElementById("spectro"); if (!cv.clientWidth) return;
+    var w = cv.clientWidth, h = 186;
+    if (cv.width !== w || cv.height !== h){
+      cv.width = w; cv.height = h;
+      spectroCtx = cv.getContext("2d");
+      spectroCtx.fillStyle = "#04080A"; spectroCtx.fillRect(0,0,w,h);
+    }
+    var g = spectroCtx;
+    g.putImageData(g.getImageData(2, 0, w - 2, h), 0, 0);
+    g.clearRect(w - 2, 0, 2, h);
+    for (var b = 0; b < HALF; b++){
+      var v = magS[b], y = h - (b + 1) * (h / HALF), r, gg, bb, u;
+      if (v < 0.30){ u = v / 0.30; r = 4 + u*8; gg = 8 + u*52; bb = 10 + u*58; }
+      else if (v < 0.62){ u = (v-0.30)/0.32; r = 12 + u*40; gg = 60 + u*100; bb = 68 + u*84; }
+      else { u = (v-0.62)/0.38; r = 52 + u*158; gg = 160 - u*10; bb = 152 - u*90; }
+      g.fillStyle = "rgb(" + (r|0) + "," + (gg|0) + "," + (bb|0) + ")";
+      g.fillRect(w - 2, y, 2, h / HALF + 1);
+    }
+  }
+
+  // ui wiring
+  var page = "overview";
+  var PAGES = ["overview","body","resp","fusion","sensors","events","tech"];
+  var TITLES = { overview:"Overview", body:"On the body", resp:"Breath sound",
+                 fusion:"Scoring", sensors:"Hardware", events:"Events", tech:"About" };
+  var nav = document.getElementById("nav");
+  function goto(p){
+    page = p;
+    Array.prototype.forEach.call(nav.children, function(b){
+      b.setAttribute("aria-current", b.dataset.p === p ? "true" : "false");
+    });
+    PAGES.forEach(function(k){
+      document.getElementById("pg-" + k).className = "page" + (k === p ? " on" : "");
+    });
+    document.getElementById("pageTitle").textContent = TITLES[p];
+    if (p === "body") Body.ensure(); else setFocus(false);
+    window.scrollTo(0,0);
+  }
+  nav.addEventListener("click", function(e){
+    var b = e.target.closest("button[data-p]"); if (b) goto(b.dataset.p);
+  });
+
+  var scenSeg = document.getElementById("scen");
+  function paintScenario(){
+    Array.prototype.forEach.call(scenSeg.children, function(b){
+      b.setAttribute("aria-pressed", b.dataset.s === engine.scenario ? "true" : "false");
+    });
+  }
+  scenSeg.addEventListener("click", function(e){
+    var b = e.target.closest("button[data-s]"); if (!b) return;
+    engine.setScenario(b.dataset.s); paintScenario();
+  });
+  var spd = document.getElementById("spd");
+  spd.addEventListener("click", function(e){
+    var b = e.target.closest("button[data-x]"); if (!b) return;
+    engine.speed = parseFloat(b.dataset.x);
+    Array.prototype.forEach.call(spd.children, function(c){
+      c.setAttribute("aria-pressed", c === b ? "true" : "false");
+    });
+  });
+  document.getElementById("pause").addEventListener("click", function(){
+    engine.running = !engine.running;
+    this.textContent = engine.running ? "Pause" : "Start";
+    var rb = document.getElementById("runBadge");
+    rb.textContent = engine.running ? "Running" : "Paused";
+    rb.className = "status" + (engine.running ? "" : " paused");
+    emit(engine.running ? "Simulation resumed" : "Simulation paused", "");
+  });
+  document.getElementById("reset").addEventListener("click", function(){ engine.reset(); });
+
+  function setFocus(on){
+    var app = document.getElementById("app"), b = document.getElementById("focusBtn");
+    app.classList.toggle("focus", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+    b.innerHTML = on ? "Exit full window" : "&#10530; Full window";
+  }
+  document.getElementById("focusBtn").addEventListener("click", function(){
+    setFocus(!document.getElementById("app").classList.contains("focus"));
+  });
+  document.addEventListener("keydown", function(e){ if (e.key === "Escape") setFocus(false); });
+
+  emit("Simulation started. No hardware connected.", "cy");
+
+  // ON THE BODY.
+  var Body = (function () {
+    var built = false, S = null;
+
+    var PARTS = {
+      mic:["INMP441 microphone",
+        "I2S on BCLK 4, WS 5 and SD 6. The ESP32 drives the clock and word-select lines, the microphone sends audio back on SD. It faces the chest, not the room, because breath sounds travel better through the body than through air. Narrowed airways whistle, and that whistle is what the classifier listens for."],
+      ppg:["MAX30102 optical sensor",
+        "On the shared I2C bus at address 0x57. Red and infrared light go into the skin. Infrared is drawn violet here, the real beam is invisible. The ratio of what returns gives blood oxygen, the pulsing gives heart rate, and the slow envelope riding on that pulse gives breathing rate. Three readings from one part."],
+      imu:["BMI270 motion sensor",
+        "On the shared I2C bus at 0x68. The three arrows are its axes; they grow with movement. This is what stops a flight of stairs reading as an episode. Movement with no wheeze subtracts two from the score instead of adding."],
+      env:["BME680 environment sensor",
+        "On the shared I2C bus at 0x76. Temperature, humidity and air quality around the wearer, so an event can later be placed against the conditions it happened in."],
+      mcu:["ESP32-S3",
+        "Everything arrives here. One I2C bus on GPIO 8 and 9 serves four parts; the microphone has its own I2S lines on 4, 5 and 6. The spectrogram front end, the classifier, the personal baseline, the scoring and the alert all run on this chip. Nothing is sent away for the decision to be made."],
+      oled:["OLED display",
+        "SSD1306 at 0x3C on the shared I2C bus. Monochrome. It shows the current readings, and during an alert it stops reporting numbers and tells the wearer what to do."],
+      led:["Status LEDs", "Green on GPIO 15 while readings sit within the wearer's own baseline. Red on GPIO 16, blinking faster as the score rises."],
+      motor:["Vibration motor",
+        "GPIO 17 through a 1 kΩ resistor into a 2N2222 transistor, because a pin cannot supply the motor's current directly, with a 1N4148 across the motor to absorb the kick when it switches off. Two short pulses mean alert."],
+      button:["Push button", "GPIO 18 with the internal pull-up. A short press marks an event; holding it for 1.5 seconds relearns the baseline."],
+      battery:["1000 mAh Li-Po",
+        "Stays disconnected until a protected TP4056 charger arrives. It has to be the three-chip board with a DW01 and FS8205. The single-chip version has no over-discharge cutoff and would kill the cell. A buck-boost module holds the rail at 3.3 V as the cell falls toward 3.0 V."],
+      "case":["Enclosure", "80 × 54 × 26 mm. The base faces the chest and carries the optical window and the microphone port; the lid carries the screen window, the LEDs and the button."],
+      lungs:["The lungs",
+        "Three lobes on the right, two on the left, where the heart takes up room. They fill at the simulated breathing rate, and in distress breathing becomes faster and shallower."],
+      airway:["The airways",
+        "Trachea, then two main bronchi. The left one is longer and flatter because it passes over the heart. Then the branches get smaller. As wheeze probability rises they narrow, the small branches most. That narrowing is what makes the whistle the microphone picks up, and the particles show air moving less freely through it."],
+      heart:["The heart", "Beating at the simulated rate. It speeds up during exertion and during respiratory distress alike, which is why heart rate alone can never be the trigger."],
+      diaphragm:["The diaphragm",
+        "The dome under the lungs. It contracts downward to pull air in, and does most of the work of quiet breathing."],
+      ribs:["Ribcage, sternum and spine",
+        "The ribs lift and swing outward on every breath. In distress the shoulders rise too, as the neck and shoulder muscles are drawn in to help. The device sits over the sternum, the flat bone at the front."],
+      strap:["Chest strap", "Holds the device over the sternum. The optical window and the microphone both need contact, so fit matters as much as electronics."]
+    };
+    var DEVICE_KEYS = { mic:1, ppg:1, imu:1, env:1, mcu:1, oled:1, led:1, motor:1, button:1, battery:1, "case":1 };
+
+    var STEPS = [
+      ["Alert raised","Score crossed 4. The device vibrates twice and the red LED starts blinking."],
+      ["The wearer is asked","Screen: elevated respiratory risk, stop and rest, follow your action plan. Two buttons on the device."],
+      ["They answer","Either button is logged with the reading that caused the alert."],
+      ["Caregiver told","If they ask for help, or say nothing for a minute, the phone gets the last ten minutes."],
+      ["Event stored","Saved on the device with the air quality, temperature and humidity around it."]
+    ];
+    var resp = { step:-1, t:0, ack:null, cleared:0 };
+
+    // microphone
+    var analyser = null, freqData = null, micOn = false, BINS = 64;
+    var column = new Float32Array(BINS);
+    function startMic(){
+      if (micOn || !navigator.mediaDevices) return;
+      var btn = document.getElementById("micBtn");
+      navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false}})
+        .then(function(stream){
+          var ac = new (window.AudioContext || window.webkitAudioContext)();
+          analyser = ac.createAnalyser();
+          analyser.fftSize = 1024; analyser.smoothingTimeConstant = 0.62;
+          ac.createMediaStreamSource(stream).connect(analyser);
+          freqData = new Uint8Array(analyser.frequencyBinCount);
+          micOn = true;
+          btn.textContent = "Microphone on";
+          btn.setAttribute("aria-pressed","true");
+          emit("Wheeze term now measured from live microphone audio", "cy");
+        })
+        .catch(function(){ btn.textContent = "Microphone refused"; });
+    }
+    function readMic(){
+      if (!micOn || !analyser) return;
+      analyser.getByteFrequencyData(freqData);
+      // Only the low end matters for breath sounds, so squeeze the useful range into the bins rather than.
+      var use = Math.floor(freqData.length * 0.12), i, j;
+      for (i = 0; i < BINS; i++){
+        var a = Math.floor(i/BINS*use), b = Math.floor((i+1)/BINS*use), m = 0;
+        for (j = a; j <= b && j < freqData.length; j++) if (freqData[j] > m) m = freqData[j];
+        column[i] = m / 255;
+      }
+      // Energy concentrated in one narrow band, in the wheeze range, is what a wheeze looks like.
+      var peak = 0, pk = 0, sum = 0;
+      for (i = 0; i < BINS; i++){ sum += column[i]; if (column[i] > peak){ peak = column[i]; pk = i; } }
+      var mean = sum / BINS;
+      var sharp = mean > 0.04 ? Math.max(0, peak - mean * 2.1) : 0;
+      var inBand = (pk > BINS*0.25 && pk < BINS*0.75) ? 1 : 0.25;
+      engine.micWheeze = Math.min(1, sharp * 2.6 * inBand);
+    }
+
+    // the torso outline, shared by skin, ribs, strap and device
+    // [radius, height]; the depth of the body is DEPTH times its width.
+    var PROFILE = [[36,-96],[37,-72],[34,-44],[33,-26],[36,-6],[41,10],[46,26],
+                   [49.5,42],[51,58],[49,72],[44,84],[32,95],[18,101],[13,108]];
+    var DEPTH = 0.6;
+    function torsoR(y){
+      if (y <= PROFILE[0][1]) return PROFILE[0][0];
+      for (var i = 1; i < PROFILE.length; i++){
+        if (y <= PROFILE[i][1]){
+          var a = PROFILE[i-1], b = PROFILE[i], u = (y - a[1]) / (b[1] - a[1]);
+          return a[0] + (b[0] - a[0]) * u;
+        }
+      }
+      return PROFILE[PROFILE.length-1][0];
+    }
+    function isShown(o){ while (o){ if (!o.visible) return false; o = o.parent; } return true; }
+    function wrapPi(a){ while (a > Math.PI) a -= 2*Math.PI; while (a < -Math.PI) a += 2*Math.PI; return a; }
+
+    var W = 80, D = 54, H = 26;       // enclosure, millimetres
+    var DEV_S = 0.55, GAP = 10;       // on-body scale; layer spacing when exploded
+    var PINX = { 4:12, 5:15, 6:18, 8:24, 9:27, 15:38, 16:41, 17:44, 18:47 };
+    var N_SEG = 20;                   // points per wire curve
+
+    function build(){
+      if (typeof THREE === "undefined") return false;
+      function V(x,y,z){ return new THREE.Vector3(x,y,z); }
+      var UP = V(0,1,0), ZAX = V(0,0,1);
+
+      var stage = document.getElementById("stage");
+      var scene = new THREE.Scene();
+      var camera = new THREE.PerspectiveCamera(30, 1, 1, 4000);
+      var renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.domElement.className = "gl";
+      stage.insertBefore(renderer.domElement, stage.firstChild);
+
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x1A262B, 0.75));
+      var key = new THREE.DirectionalLight(0xffffff, 0.95); key.position.set(150,210,220); scene.add(key);
+      var rim = new THREE.DirectionalLight(0x7FD8E4, 0.6); rim.position.set(-160,140,-240); scene.add(rim);
+      var fill = new THREE.DirectionalLight(0xffffff, 0.22); fill.position.set(0,-150,140); scene.add(fill);
+
+      var root = new THREE.Group(); scene.add(root);
+      var skinG = new THREE.Group(), ribG = new THREE.Group(), organG = new THREE.Group();
+      var devG = new THREE.Group(), wireG = new THREE.Group();
+      root.add(skinG, ribG, organG, devG);
+      devG.add(wireG);          // wires live in device coordinates, so they explode with it
+
+      var pickable = [];
+      function mat(c,o){ o = o || {}; return new THREE.MeshStandardMaterial({ color:c,
+        roughness:o.rough === undefined ? 0.62 : o.rough, metalness:o.metal || 0.05,
+        emissive:o.em || 0x000000, emissiveIntensity:o.ei || 1,
+        transparent:o.op !== undefined, opacity:o.op === undefined ? 1 : o.op,
+        side:o.side || THREE.FrontSide, depthWrite:o.dw === undefined ? true : o.dw }); }
+      function tag(m,k){ if (k){ m.userData.part = k; pickable.push(m); } return m; }
+      function cylBetween(a, b, rad, m, taper){
+        var mesh = new THREE.Mesh(new THREE.CylinderGeometry(rad*(taper||1), rad, a.distanceTo(b), 12), m);
+        mesh.position.copy(a).add(b).multiplyScalar(0.5);
+        mesh.quaternion.setFromUnitVectors(UP, b.clone().sub(a).normalize());
+        return mesh;
+      }
+
+      // skin: a faint body under a rim-lit shell
+      var skinMat = mat(0xC9A58A,{rough:0.9, op:0.14, dw:false});
+      var rimMat = new THREE.ShaderMaterial({
+        uniforms: { col:{value:new THREE.Color(0xF3D9C6)}, amt:{value:0.85} },
+        vertexShader:
+          "varying vec3 vN; varying vec3 vV;" +
+          "void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0);" +
+          " vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz);" +
+          " gl_Position = projectionMatrix * mv; }",
+        fragmentShader:
+          "uniform vec3 col; uniform float amt; varying vec3 vN; varying vec3 vV;" +
+          "void main(){ float f = 1.0 - abs(dot(normalize(vN), normalize(vV)));" +
+          " f = pow(f, 2.4) * amt; gl_FragColor = vec4(col * f, f); }",
+        transparent:true, blending:THREE.AdditiveBlending, depthWrite:false
+      });
+      function piece(geo, parent){
+        var g = new THREE.Group();
+        g.add(new THREE.Mesh(geo, skinMat), new THREE.Mesh(geo, rimMat));
+        parent.add(g); return g;
+      }
+      var torso = piece(new THREE.LatheGeometry(PROFILE.map(function(p){
+        return new THREE.Vector2(p[0], p[1]); }), 56), skinG);
+      torso.scale.z = DEPTH;
+      var hip = piece(new THREE.SphereGeometry(36, 32, 16), skinG);
+      hip.position.y = -96; hip.scale.set(1, 0.32, DEPTH);
+      var neck = piece(new THREE.CylinderGeometry(11, 13, 22, 24, 1, true), skinG);
+      neck.position.y = 116;
+      var head = piece(new THREE.SphereGeometry(25, 36, 28), skinG);
+      head.position.y = 142; head.scale.set(0.9, 1.12, 0.98);
+      var jaw = piece(new THREE.SphereGeometry(17, 28, 20), skinG);
+      jaw.position.set(0, 128, 5); jaw.scale.set(0.92, 0.7, 0.95);
+      var shoulderG = new THREE.Group(); skinG.add(shoulderG);
+      [-1, 1].forEach(function(s){
+        var sh = piece(new THREE.SphereGeometry(17,24,18), shoulderG);
+        sh.position.set(s*49, 84, 0); sh.scale.set(1, 0.82, 0.8);
+        var ua = piece(new THREE.CylinderGeometry(12.5,10.5,62,22,1,true), shoulderG);
+        ua.position.set(s*59, 50, 0); ua.rotation.z = s*0.14;
+        var el = piece(new THREE.SphereGeometry(10.5,20,16), shoulderG);
+        el.position.set(s*63.4, 19, 0);
+        var fa = piece(new THREE.CylinderGeometry(10,8,58,20,1,true), shoulderG);
+        fa.position.set(s*66, -11, 0); fa.rotation.z = s*0.05;
+        var hd = piece(new THREE.SphereGeometry(8.5,20,16), shoulderG);
+        hd.position.set(s*67.8, -47, 0); hd.scale.set(0.75, 1.35, 0.5);
+      });
+
+      // skeleton: ribs, costal cartilage, sternum, spine, clavicles
+      var boneMat = mat(0xE9DDC7,{rough:0.55, op:0.72, dw:false, em:0x2A2418});
+      var cartMat = mat(0xB9D3D8,{rough:0.5, op:0.5, dw:false});
+      function sternZ(y){ return torsoR(y) * DEPTH * 0.92; }
+      var sternum = new THREE.Mesh(new THREE.BoxGeometry(6, 52, 2.6), boneMat);
+      sternum.position.set(0, 60, sternZ(60)); ribG.add(tag(sternum, "ribs"));
+      for (var i = 0; i < 10; i++){
+        var y = 86 - i*7, r = torsoR(y) * 0.88, rz = torsoR(y) * DEPTH * 0.9;
+        var gap = 0.2 + i*0.055, drop = 5 + i*0.7, pts = [];
+        for (var j = 0; j <= 30; j++){
+          var a = gap + (2*Math.PI - 2*gap) * j / 30;
+          pts.push(V(r*Math.sin(a), y - drop*(1 + Math.cos(a))/2, rz*Math.cos(a)));
+        }
+        ribG.add(tag(new THREE.Mesh(new THREE.TubeGeometry(
+          new THREE.CatmullRomCurve3(pts), 48, 1.3 - i*0.04, 6, false), boneMat), "ribs"));
+        if (i < 7){   // the true ribs reach the sternum through cartilage
+          ribG.add(tag(cylBetween(pts[0],  V( 3, pts[0].y + 1.5,  sternZ(y)), 0.9, cartMat), "ribs"));
+          ribG.add(tag(cylBetween(pts[30], V(-3, pts[30].y + 1.5, sternZ(y)), 0.9, cartMat), "ribs"));
+        }
+      }
+      for (var v = 0; v < 20; v++){
+        var vy = -70 + v*9;
+        var vert = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.2, 5.5, 14), boneMat);
+        vert.position.set(0, vy, -torsoR(vy) * DEPTH * 0.8);
+        ribG.add(tag(vert, "ribs"));
+      }
+      [-1, 1].forEach(function(s){
+        ribG.add(tag(cylBetween(V(s*3, 93, sternZ(93) - 1), V(s*46, 90, 4), 1.9, boneMat), "ribs"));
+      });
+
+      // organs
+      var lungMats = [mat(0xD98A8A,{rough:0.55, op:0.8, dw:false}),
+                      mat(0xE39C95,{rough:0.55, op:0.8, dw:false}),
+                      mat(0xCC7C7E,{rough:0.55, op:0.8, dw:false})];
+      function lobe(g, x,y,z, rr, sx,sy,sz, m){
+        var o = new THREE.Mesh(new THREE.SphereGeometry(rr, 28, 22), m);
+        o.position.set(x,y,z); o.scale.set(sx,sy,sz); g.add(tag(o, "lungs"));
+      }
+      // the wearer faces the camera, so their right lung is on screen-left
+      var lungR = new THREE.Group(); lungR.position.set(-21, 46, -3); organG.add(lungR);
+      lobe(lungR, -1, 13,  0, 17, 0.95, 1.15, 0.78, lungMats[0]);   // upper
+      lobe(lungR, -3, -3,  7, 12, 1.05, 0.8,  0.8,  lungMats[1]);   // middle
+      lobe(lungR,  0,-13, -4, 17, 1.05, 0.95, 0.85, lungMats[2]);   // lower
+      var lungL = new THREE.Group(); lungL.position.set(22, 45, -3); organG.add(lungL);
+      lobe(lungL,  1, 11, -1, 17, 0.85, 1.3,  0.78, lungMats[0]);   // upper
+      lobe(lungL,  3,-13, -4, 17, 1.0,  0.95, 0.85, lungMats[2]);   // lower
+
+      var heart = new THREE.Mesh(new THREE.SphereGeometry(13, 26, 20), mat(0xBE4038,{rough:0.42}));
+      heart.position.set(9, 33, 10); heart.rotation.z = -0.4;
+      organG.add(tag(heart, "heart"));
+
+      var diaphragm = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 14, 0, Math.PI*2, 0, Math.PI/2),
+        mat(0xB65E58,{rough:0.6, op:0.5, dw:false, side:THREE.DoubleSide}));
+      diaphragm.position.set(0, 12, -3); diaphragm.scale.set(42, 12, 26);
+      organG.add(tag(diaphragm, "diaphragm"));
+
+      var airMat = mat(0xEBA9A2,{rough:0.45, em:0x3A1512});
+      var airways = [], leaves = [];
+      var top = V(0, 106, -6), carina = V(0, 72, -6);
+      var trachea = cylBetween(top, carina, 5.4, airMat, 0.95);
+      trachea.userData.depth = -1; organG.add(tag(trachea, "airway")); airways.push(trachea);
+      function branch(p0, dir, len, rad, depth, chain){
+        var p1 = p0.clone().addScaledVector(dir, len);
+        var m = cylBetween(p0, p1, rad, airMat, 0.8);
+        m.userData.depth = depth; organG.add(tag(m, "airway")); airways.push(m);
+        var ch = chain.concat([p1]);
+        if (depth === 3){ leaves.push(ch); return; }
+        for (var s = -1; s <= 1; s += 2){
+          var d = dir.clone().applyAxisAngle(ZAX, s * (depth === 0 ? 0.62 : 0.5));
+          d.z += s * (depth % 2 ? 0.3 : -0.24); d.normalize();
+          branch(p1, d, len * 0.74, rad * 0.66, depth + 1, ch);
+        }
+      }
+      branch(carina, V(-0.52,-0.85,0).normalize(), 19, 3.8, 0, [top, carina]);   // right: short, steep
+      branch(carina, V( 0.70,-0.71,0).normalize(), 22, 3.4, 0, [top, carina]);   // left: longer, flatter
+
+      // air moving through the tree, one path per particle
+      var airDots = [], dotGeo = new THREE.SphereGeometry(0.95, 8, 6);
+      for (var q = 0; q < 42; q++){
+        var dm = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({color:0x7FE3F0, transparent:true, depthWrite:false}));
+        dm.userData = { chain: leaves[q % leaves.length], u: (q * 0.137) % 1 };
+        organG.add(dm); airDots.push(dm);
+      }
+
+      // sound travelling from the airways, through the chest wall, to the mic
+      var ringGeo = new THREE.RingGeometry(0.78, 1, 40), rings = [];
+      for (var rI = 0; rI < 7; rI++){
+        var rm = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({color:0x48C4D6, transparent:true,
+          side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending}));
+        rm.userData.u = rI / 7; root.add(rm); rings.push(rm);
+      }
+
+      // the device
+      // Coordinates follow the enclosure drawing, in millimetres: x along the 80 mm width, y along the 54 mm.
+      var devHome = V(0, 54, torsoR(54) * DEPTH + H/2 * DEV_S + 1.2);
+      var devAway = V(0, 76, 96);
+      var devParts = [], anchors = {}, detailSprites = [];
+      function local(x,y,z){ return V(x - W/2, -z + H/2, y - D/2); }
+      function place(mm, L, wall){
+        mm.userData.baseY = mm.position.y; mm.userData.baseX = mm.position.x;
+        mm.userData.L = L; mm.userData.wall = !!wall;
+        devParts.push(mm); devG.add(mm); return mm;
+      }
+      // a box whose lid-side face sits at depth z and extends h toward the base
+      function bx(x,y,z,w,d,h,m,k,L,wall){
+        var mm = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), m);
+        mm.position.set(x + w/2 - W/2, -(z + h/2) + H/2, y + d/2 - D/2);
+        tag(mm, k); return place(mm, L, wall);
+      }
+      function cy(x,y,z,r,h,m,k,L,seg){
+        var mm = new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,seg||24), m);
+        mm.position.set(x - W/2, -(z + h/2) + H/2, y - D/2);
+        tag(mm, k); return place(mm, L);
+      }
+      // a cylinder lying along x, for axial parts such as the resistor
+      function rod(x0,x1,y,zc,r,m,k,L){
+        var mm = new THREE.Mesh(new THREE.CylinderGeometry(r,r,x1-x0,14), m);
+        mm.rotation.z = Math.PI/2; mm.position.copy(local((x0+x1)/2, y, zc));
+        tag(mm, k); return place(mm, L);
+      }
+      function anchor(n,x,y,z,L){
+        var o = new THREE.Object3D(); o.position.copy(local(x,y,z));
+        place(o, L); anchors[n] = o; return o;
+      }
+      var edgeMat = new THREE.LineBasicMaterial({color:0x8FB7C0, transparent:true, opacity:0.6});
+      function outline(x,y,z,w,d,h,L,wall){
+        var ln = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w,h,d)), edgeMat);
+        ln.position.set(x + w/2 - W/2, -(z + h/2) + H/2, y + d/2 - D/2);
+        return place(ln, L, wall);
+      }
+      // text printed on a part, lying flat on its lid-facing face
+      function silk(text, x, y, z, w, h, L, o){
+        o = o || {};
+        var c = document.createElement("canvas");
+        c.width = 512; c.height = Math.max(32, Math.round(512 * h / w));
+        var g = c.getContext("2d");
+        var fs = Math.round(c.height * (o.size || 0.62));
+        g.fillStyle = o.col || "#E6ECEE";
+        g.font = "600 " + fs + "px 'IBM Plex Mono', monospace";
+        g.textAlign = "center"; g.textBaseline = "middle";
+        g.fillText(text, c.width / 2, c.height / 2 + fs * 0.05, c.width - 8);
+        var tex = new THREE.CanvasTexture(c); tex.anisotropy = 4;
+        var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+          new THREE.MeshBasicMaterial({map:tex, transparent:true, depthWrite:false}));
+        m.rotation.x = -Math.PI/2;
+        m.position.copy(local(x + w/2, y + h/2, z - 0.05));
+        return place(m, L);
+      }
+      function roundRect(g,x,y,w,h,r){
+        g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r);
+        g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath();
+      }
+      // a label that always faces the camera; shown only up close
+      function sprite(text, col, h, x, y, z, L){
+        var c = document.createElement("canvas"), fs = 44;
+        var g = c.getContext("2d");
+        g.font = "600 " + fs + "px 'IBM Plex Mono', monospace";
+        c.width = Math.ceil(g.measureText(text).width) + 28; c.height = fs + 22;
+        g = c.getContext("2d");
+        g.fillStyle = "rgba(6,9,11,0.84)"; roundRect(g, 0, 0, c.width, c.height, 10); g.fill();
+        g.font = "600 " + fs + "px 'IBM Plex Mono', monospace";
+        g.fillStyle = col; g.textBaseline = "middle"; g.fillText(text, 14, c.height / 2 + 2);
+        var sp = new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),
+          transparent:true, opacity:0, depthTest:false, depthWrite:false}));
+        sp.renderOrder = 10; sp.visible = false;
+        sp.scale.set(h * c.width / c.height, h, 1);
+        sp.position.copy(local(x, y, z));
+        detailSprites.push(sp);
+        return place(sp, L);
+      }
+      var haloTex = (function(){
+        var c = document.createElement("canvas"); c.width = c.height = 128;
+        var g = c.getContext("2d"), gr = g.createRadialGradient(64,64,0,64,64,64);
+        gr.addColorStop(0, "rgba(255,255,255,1)");
+        gr.addColorStop(0.35, "rgba(255,255,255,0.42)");
+        gr.addColorStop(1, "rgba(255,255,255,0)");
+        g.fillStyle = gr; g.fillRect(0,0,128,128);
+        return new THREE.CanvasTexture(c);
+      })();
+
+      var shellMat = mat(0x46545A,{rough:0.4,  op:1, dw:false});
+      var lidMat   = mat(0x3A4448,{rough:0.55, op:1, dw:false});
+      var gold   = mat(0xD4AF37,{metal:0.85, rough:0.3});
+      var black  = mat(0x111417,{rough:0.5});
+      var purple = mat(0x5B2C83,{rough:0.55});
+      var silver = mat(0xC9CFD2,{metal:0.8, rough:0.28});
+      var glass  = mat(0x07090A,{rough:0.12, metal:0.3});
+
+      // enclosure: base, walls, and a lid built around the screen window
+      bx(0,0,22.2,W,D,3.8,shellMat,"case",-3);
+      bx(0,0,2,2,D,20.2,shellMat,"case",0,true);   bx(W-2,0,2,2,D,20.2,shellMat,"case",0,true);
+      bx(2,0,2,W-4,2,20.2,shellMat,"case",0,true); bx(2,D-2,2,W-4,2,20.2,shellMat,"case",0,true);
+      bx(W-0.2,8,5.6,0.4,19.5,3.8,black,"case",0,true);            // USB-C slot, on the end wall
+      bx(0,0,0,8.5,D,2,lidMat,"case",3);     bx(33.5,0,0,W-33.5,D,2,lidMat,"case",3);
+      bx(8.5,0,0,25,10.5,2,lidMat,"case",3); bx(8.5,23.5,0,25,D-23.5,2,lidMat,"case",3);
+      outline(0,0,22.2,W,D,3.8,-3); outline(0,0,2,W,D,20.2,0,true);
+      outline(0,0,0,W,D,2,3);       outline(8.5,10.5,0,25,13,2,3);
+      cy(32,25,25.95,4,0.1,glass,"ppg",-3,28);                     // optical window in the base
+      cy(51,25,25.95,1.3,0.1,black,"mic",-3,20);                   // microphone port in the base
+
+      // ESP32-S3-DevKitC-1
+      bx(4,4,9,63,25.5,1.6,mat(0x14191C,{rough:0.6}),"mcu",1);
+      bx(4,7.5,8.2,25.5,18,0.8,mat(0x1D2733,{rough:0.5}),"mcu",1);  // WROOM-1 module
+      bx(10,8.3,6.1,18.7,16.4,2.1,silver,"mcu",1);                  // its shielding can
+      for (var an = 0; an < 5; an++) bx(4.8 + an*1.05, 9, 8.12, 0.4, 14.5, 0.08, gold, "mcu", 1);
+      silk("ESP32-S3", 10.5, 11, 6.1, 17.6, 4.4, 1, {col:"#3E474C"});
+      silk("WROOM-1", 10.5, 16.8, 6.1, 17.6, 3.2, 1, {col:"#5B666C", size:0.55});
+      bx(61,8,5.9,6.6,9,3.1,silver,"mcu",1); bx(61,18.5,5.9,6.6,9,3.1,silver,"mcu",1);    // USB-C ×2
+      bx(52,5.4,8.1,3.4,2.6,0.9,black,"mcu",1); bx(52,25.5,8.1,3.4,2.6,0.9,black,"mcu",1); // BOOT, RST
+      silk("ESP32-S3-DevKitC-1", 31, 21.5, 9, 26, 3.0, 1);
+      bx(6.5,26.9,10.6,57,2.4,4,black,"mcu",1);                    // header J1
+      bx(6.5,4.6,10.6,57,2.4,4,black,"mcu",1);                     // header J3
+
+      // J1, in board order.
+      var J1 = ["3V3","3V3","RST",4,5,6,7,15,16,17,18,8,3,46,9,10,11,12,13,14,"5V","G"];
+      function pinX(gp){ return 8 + J1.indexOf(gp) * 2.54; }
+      var PAD_Y = 30.4, EXIT_Y = 31.3, PERF_Z = 14.3;
+      for (var jp = 0; jp < J1.length; jp++){
+        cy(8 + jp*2.54, 28.15, 8.85, 0.55, 0.15, silver, "mcu", 1, 8);   // solder joints
+        cy(8 + jp*2.54,  5.85, 8.85, 0.55, 0.15, silver, "mcu", 1, 8);
+      }
+
+      // perf board, with its 2.54 mm hole grid
+      var perfTex = (function(){
+        var c = document.createElement("canvas"); c.width = 740; c.height = 480;
+        var g = c.getContext("2d");
+        g.fillStyle = "#C4A267"; g.fillRect(0,0,740,480);
+        for (var px = 12.7; px < 740; px += 25.4) for (var py = 12.7; py < 480; py += 25.4){
+          g.fillStyle = "#B07A45"; g.beginPath(); g.arc(px, py, 7.5, 0, 7); g.fill();
+          g.fillStyle = "#2A1E12"; g.beginPath(); g.arc(px, py, 3.6, 0, 7); g.fill();
+        }
+        var t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
+      })();
+      var perfSide = mat(0xB99A5E,{rough:0.75});
+      var perf = new THREE.Mesh(new THREE.BoxGeometry(74,1.6,48),
+        [perfSide, perfSide, new THREE.MeshStandardMaterial({map:perfTex, roughness:0.7}),
+         perfSide, perfSide, perfSide]);
+      perf.position.set(3 + 37 - W/2, -(14.6 + 0.8) + H/2, 3 + 24 - D/2);
+      place(perf, 0);
+
+      // pads beside the header for each GPIO used, with their numbers
+      [4,5,6,15,16,17,18,8,9].forEach(function(gp){
+        var x = pinX(gp);
+        bx(x - 0.8, PAD_Y - 0.8, 14.5, 1.6, 1.6, 0.1, gold, "mcu", 0);
+        bx(x - 0.25, 28.6, 14.5, 0.5, PAD_Y - 28.6, 0.08, gold, null, 0);
+        sprite(String(gp), "#E6ECEE", 1.7, x, PAD_Y + 0.2, 12.6, 0);
+      });
+      sprite("J1 · GPIO", "#788790", 1.9, 8.5, PAD_Y + 0.2, 12.6, 0);
+      sprite("I2S", "#D2A044", 2.2, pinX(5), PAD_Y + 0.2, 9.4, 0);
+      sprite("LED·MTR·BTN", "#C7CED1", 2.2, (pinX(15) + pinX(18)) / 2, PAD_Y + 0.2, 9.4, 0);
+      sprite("I2C", "#48C4D6", 2.2, (pinX(8) + pinX(9)) / 2, PAD_Y + 0.2, 9.4, 0);
+
+      // SSD1306 OLED module
+      bx(5,7,3.6,32,22,1.6,mat(0x1E4E8C,{rough:0.55}),"oled",2);
+      bx(6,8.5,2.6,30,17,1.0,glass,"oled",2);
+      [17,19,21,23].forEach(function(px){ bx(px - 0.6, 27.3, 3.5, 1.2, 1.2, 0.1, gold, "oled", 2); });
+      silk("GND VCC SCL SDA", 15.8, 25.7, 3.6, 8.4, 1.3, 2, {size:0.8});
+      var cvs = document.createElement("canvas"); cvs.width = 512; cvs.height = 256;
+      var oledCtx = cvs.getContext("2d"), oledTex = new THREE.CanvasTexture(cvs);
+      oledTex.anisotropy = 4;
+      var scr = new THREE.Mesh(new THREE.PlaneGeometry(25,13), new THREE.MeshBasicMaterial({map:oledTex}));
+      scr.rotation.x = -Math.PI/2; scr.position.copy(local(21, 17, 2.55));
+      tag(scr, "oled"); place(scr, 2);
+
+      // LEDs and the push button, through the lid
+      var ledOkMat  = mat(0x35C46A,{em:0x35C46A, ei:1.4,  rough:0.3});
+      var ledBadMat = mat(0xD24A3E,{em:0xD24A3E, ei:0.08, rough:0.3});
+      cy(48,13,  -0.6,1.5,3.0,ledOkMat,"led",3,18);
+      cy(48,21.5,-0.6,1.5,3.0,ledBadMat,"led",3,18);
+      function halo(col, x, y){
+        var sp = new THREE.Sprite(new THREE.SpriteMaterial({map:haloTex, color:col, transparent:true,
+          blending:THREE.AdditiveBlending, depthWrite:false}));
+        sp.scale.set(9, 9, 1); sp.position.copy(local(x, y, -1.2));
+        return place(sp, 3);
+      }
+      var haloOk = halo(0x35C46A, 48, 13), haloBad = halo(0xD24A3E, 48, 21.5);
+      bx(61,13,2,8,8,3.2,black,"button",3);
+      cy(65,17,-0.9,2.1,1.5,mat(0x565F63,{rough:0.5}),"button",3,26);
+
+      // sensors on the base, facing the chest
+      bx(23,19,20.6,18,14,1.6,purple,"ppg",-2);                    // MAX30102 breakout
+      bx(29,23.4,22.2,6,3.2,1.3,black,"ppg",-2);
+      bx(29.4,23.7,23.5,5.2,2.6,0.4,glass,"ppg",-2);
+      silk("MAX30102", 24.5, 20.2, 20.6, 15, 3.2, -2);
+      cy(51,25,20.6,6,1.2,mat(0x2B4C9B,{rough:0.55}),"mic",-2,36);  // INMP441, round board
+      cy(51,25,21.8,2.2,1.0,silver,"mic",-2,24);
+      silk("INMP441", 46.5, 21.2, 20.6, 9, 2.1, -2);
+      bx(57,13,20.6,12,10,1.6,purple,"imu",-2);                    // BMI270
+      bx(61.4,16.2,20.1,3,2.5,0.5,black,"imu",-2);
+      silk("BMI270", 57.5, 19.4, 20.6, 11, 2.4, -2);
+      var motorMesh = cy(66,44,19.2,5,3,silver,"motor",-2,36);     // coin motor, glued to the base
+
+      // BME680 on the perf board, near the air
+      bx(56,40,12.4,18,12,1.6,purple,"env",0);
+      bx(63.5,44.5,11.6,3,3,0.8,silver,"env",0);
+      silk("BME680", 57, 48.6, 12.4, 10, 2.4, 0);
+
+      // motor driver: GPIO 17 → 1 kΩ → 2N2222, with a 1N4148 across the motor
+      rod(66.5, 70.5, 34, 13.3, 0.9, mat(0xD9B98C,{rough:0.6}), "motor", 0);
+      [0x7A4A1E, 0x111111, 0xC23B22].forEach(function(c, i){   // brown, black, red: 1 kΩ
+        var x = 67.3 + i * 0.8;
+        rod(x - 0.2, x + 0.2, 34, 13.3, 0.95, mat(c), "motor", 0);
+      });
+      rod(69.6, 70.0, 34, 13.3, 0.95, gold, "motor", 0);
+      cy(73,34.5,10.4,2.2,4.2,black,"motor",0,20);
+      rod(71.2, 74.8, 38.6, 13.6, 0.7, mat(0xE8903A,{rough:0.2, op:0.85}), "motor", 0);
+      rod(74.0, 74.4, 38.6, 13.6, 0.75, black, "motor", 0);
+      silk("1 kΩ", 66.6, 31.9, 14.55, 3.8, 1.2, 0, {col:"#2A1E12", size:0.8});
+      silk("2N2222", 70, 36.9, 14.55, 6, 1.3, 0, {col:"#2A1E12", size:0.8});
+
+      // battery, under the perf board, deliberately left unplugged
+      bx(8,34,16.4,40,16,4.4,mat(0xB5BEC3,{metal:0.35, rough:0.4}),"battery",-1);
+      silk("Li-Po  1000 mAh  3.7 V", 11, 39.6, 16.4, 34, 4.4, -1, {col:"#39424A"});
+      bx(50.5,39.5,17.4,4,5,2.6,mat(0xEDEDE6,{rough:0.5}),"battery",-1);
+      rod(48, 50.5, 41, 18.6, 0.35, mat(0xC23B22), "battery", -1);
+      rod(48, 50.5, 43, 18.6, 0.35, black, "battery", -1);
+      sprite("disconnected", "#D2A044", 1.8, 52.5, 42, 15.6, -1);
+
+      anchor("ppg",32,25,23.9,-2); anchor("mic",51,25,22.8,-2);
+      anchor("imu",63,18,20.6,-2); anchor("env",65,46,12.4,0);
+      anchor("mcu",20,16,6.1,1);   anchor("out",48,17,-0.6,3);
+
+      // light from the optical sensor into the skin: red, and infrared
+      function beam(col, dx){
+        var c = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 3.6, 16, 24, 1, true),
+          new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.3,
+            side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending}));
+        c.position.set(dx, -10.1, 0); anchors.ppg.add(c); return c;
+      }
+      var redBeam = beam(0xFF4A3D, -2.2), irBeam = beam(0xA05CFF, 2.2);
+
+      // the motion sensor's three axes, coloured x red, y green, z blue
+      var imuArrows = [[1,0,0,0xD3584B],[0,0,1,0x4CAE7C],[0,-1,0,0x48C4D6]].map(function(d){
+        var ah = new THREE.ArrowHelper(V(d[0],d[1],d[2]), V(0,0,0), 4, d[3], 1.6, 1.1);
+        anchors.imu.add(ah); return ah;
+      });
+
+      // wiring: every lead runs to its GPIO on header J1
+      // Leads leave each part, drop through the perf board, run along its lid-side face in lanes, and end at a.
+      var SDA = 0x48C4D6, SCL = 0x2E7FBF;
+      // [part, pad x, y, z, layer, exit x, GPIO, colour, data flows from the part]
+      var LEADS = [
+        ["oled",   23,  28.6, 3.5,   2,  23,   8, SDA, false],
+        ["oled",   21,  28.6, 3.5,   2,  21,   9, SCL, false],
+        ["ppg",    27,  31.8, 20.55,-2,  27,   8, SDA, true],
+        ["ppg",  29.5,  31.8, 20.55,-2,  29.5, 9, SCL, true],
+        ["imu",  58.5,  22.6, 20.55,-2,  58.5, 8, SDA, true],
+        ["imu",    60,  22.6, 20.55,-2,  60,   9, SCL, true],
+        ["env",    58,  40.4, 12.35, 0,  58,   8, SDA, true],
+        ["env",  60.5,  40.4, 12.35, 0,  60.5, 9, SCL, true],
+        ["mic",  50.2,  29.7, 20.55,-2,  50.2, 4, 0xD2A044, false],   // BCLK, driven by the ESP32
+        ["mic",  51.6,  29.7, 20.55,-2,  51.6, 5, 0xE3BE6A, false],   // WS, driven by the ESP32
+        ["mic",  53.0,  29.7, 20.55,-2,  53.0, 6, 0xB5821F, true],    // SD, audio back from the mic
+        ["led",  46.6,  13,   2.1,   3,  46.6, 15, 0x4CAE7C, false],
+        ["led",  48.9,  21.5, 2.1,   3,  48.9, 16, 0xD3584B, false],
+        ["motor",66.3,  34,   13.3,  0,  66.3, 17, 0xB08BE0, false],  // into the 1 kΩ
+        ["button",65,   21.2, 4.6,   3,  65,   18, 0xC7CED1, true]
+      ];
+      // lanes on the perf board, ordered by where each lead comes down
+      var laneY = [];
+      LEADS.map(function(l, i){ return {i:i, x:l[5]}; })
+           .sort(function(a, b){ return a.x - b.x; })
+           .forEach(function(o, k){ laneY[o.i] = 32.1 + k * 0.52; });
+      function routeFor(l, i){
+        var pts = [[l[1], l[2], l[3], l[4]]];
+        if (l[4] !== 0){
+          pts.push([l[1], EXIT_Y, l[3], l[4]]);
+          pts.push([l[5], EXIT_Y, l[3], l[4]]);
+          pts.push([l[5], EXIT_Y, PERF_Z, 0]);
+        } else {
+          pts.push([l[1], l[2], PERF_Z, 0]);
+        }
+        var last = pts[pts.length - 1];
+        pts.push([last[0], laneY[i], PERF_Z, 0]);
+        pts.push([pinX(l[6]), laneY[i], PERF_Z, 0]);
+        pts.push([pinX(l[6]), PAD_Y, PERF_Z, 0]);
+        // drop repeated points; a zero-length run breaks the corner rounding
+        return pts.filter(function(p, k){
+          var q = pts[k - 1];
+          return !q || Math.abs(p[0]-q[0]) + Math.abs(p[1]-q[1]) + Math.abs(p[2]-q[2]) > 1e-3;
+        });
+      }
+      // the motor's own leads, from the 2N2222 down to the coin motor
+      var EXTRA = [{ part:"motor", col:0xB08BE0, fromStart:true,
+        pts:[[74.2,36.2,PERF_Z,0],[76,36.2,PERF_Z,0],[76,44,PERF_Z,0],[76,44,19.9,-2],[71,44,19.9,-2]] }];
+
+      function makeWire(part, pts, col, fromStart, i){
+        var m = new THREE.Mesh(new THREE.BufferGeometry(), mat(col,{rough:0.42, em:col, ei:0.28, op:1}));
+        tag(m, part); wireG.add(m);
+        var pulse = new THREE.Mesh(new THREE.SphereGeometry(0.42, 10, 8),
+          new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, depthWrite:false}));
+        var glow = new THREE.Sprite(new THREE.SpriteMaterial({map:haloTex, color:col, transparent:true,
+          blending:THREE.AdditiveBlending, depthWrite:false}));
+        glow.scale.set(7.5, 7.5, 1);      // relative to the pulse sphere
+        pulse.add(glow); wireG.add(pulse);
+        return { part:part, pts:pts, mesh:m, pulse:pulse, glow:glow, curve:null,
+                 t:(i * 0.23) % 1, fromStart:fromStart };
+      }
+      var wires = LEADS.map(function(l, i){ return makeWire(l[0], routeFor(l, i), l[7], l[8], i); })
+        .concat(EXTRA.map(function(x, i){ return makeWire(x.part, x.pts, x.col, x.fromStart, LEADS.length + i); }));
+
+      function ptAt(p, e){ var v = local(p[0], p[1], p[2]); v.y += p[3] * GAP * e; return v; }
+      // straight runs joined by small rounded bends, the way a lead is dressed
+      function curveThrough(P){
+        var path = new THREE.CurvePath(), prev = P[0];
+        for (var k = 1; k < P.length - 1; k++){
+          var A = P[k-1], C = P[k], B = P[k+1];
+          var r = Math.min(0.9, A.distanceTo(C) * 0.45, B.distanceTo(C) * 0.45);
+          var c1 = C.clone().addScaledVector(A.clone().sub(C).normalize(), r);
+          var c2 = C.clone().addScaledVector(B.clone().sub(C).normalize(), r);
+          if (prev.distanceTo(c1) > 1e-3) path.add(new THREE.LineCurve3(prev, c1));
+          path.add(new THREE.QuadraticBezierCurve3(c1, C, c2));
+          prev = c2;
+        }
+        path.add(new THREE.LineCurve3(prev, P[P.length - 1]));
+        return path;
+      }
+      var builtE = -1;
+      function rebuild(e){
+        wires.forEach(function(w){
+          var P = w.pts.map(function(p){ return ptAt(p, e); });
+          w.curve = curveThrough(P);
+          var g = new THREE.TubeGeometry(w.curve, Math.max(40, P.length * 16), 0.3, 7, false);
+          w.mesh.geometry.dispose(); w.mesh.geometry = g;
+        });
+        builtE = e;
+      }
+      function updateDevice(e, pdt, speed, focus, detail){
+        if (builtE < 0 || Math.abs(e - builtE) > 0.004) rebuild(e);
+        wires.forEach(function(w){
+          w.t = (w.t + pdt * speed * 0.6) % 1;
+          w.pulse.position.copy(w.curve.getPointAt(w.fromStart ? w.t : 1 - w.t));
+          var on = !focus || w.part === focus, op = on ? 1 : 0.16;
+          w.mesh.material.opacity = op;
+          w.mesh.material.emissiveIntensity = focus && on ? 0.75 : 0.28;
+          var fade = Math.sin(w.t * Math.PI);
+          w.pulse.material.opacity = op * fade;
+          w.glow.material.opacity = op * fade * 0.9;
+        });
+        detailSprites.forEach(function(sp){
+          sp.material.opacity += ((detail ? 1 : 0) - sp.material.opacity) * 0.15;
+          sp.visible = sp.material.opacity > 0.02;
+        });
+        haloOk.material.opacity  = Math.min(1, ledOkMat.emissiveIntensity / 1.5) * 0.9;
+        haloBad.material.opacity = Math.min(1, ledBadMat.emissiveIntensity / 1.9) * 0.9;
+      }
+      var DEV = { update:updateDevice, edgeMat:edgeMat };
+
+      // chest strap
+      var strapR = torsoR(54);
+      var strap = new THREE.Mesh(new THREE.CylinderGeometry(1,1,1,72,1,true),
+        mat(0x172024,{rough:0.92, side:THREE.DoubleSide}));
+      strap.position.y = 54; root.add(tag(strap, "strap"));
+
+      // labels
+      var TAGS = [
+        {k:"ppg", t:"MAX30102", s:"I2C · light through skin", col:"#8A6BD0", side:"L", y:0.15,
+         v:function(){ return engine.s.spo2.toFixed(1)+"% · "+engine.s.hr.toFixed(0)+" bpm"; }},
+        {k:"mic", t:"INMP441", s:"I2S · faces the chest", col:"#D2A044", side:"L", y:0.46,
+         v:function(){ return "wheeze "+engine.s.wheeze.toFixed(2); }},
+        {k:"imu", t:"BMI270", s:"I2C · movement", col:"#D3584B", side:"R", y:0.15,
+         v:function(){ return "activity "+engine.s.motion.toFixed(2); }},
+        {k:"env", t:"BME680", s:"I2C · surrounding air", col:"#4CAE7C", side:"R", y:0.44,
+         v:function(){ return engine.s.temp.toFixed(0)+"°C · "+engine.s.hum.toFixed(0)+"%"; }},
+        {k:"out", t:"OLED, LEDs, motor", s:"GPIO 15 · 16 · 17", col:"#48C4D6", side:"R", y:0.74,
+         v:function(){ return engine.s.state; }}
+      ];
+      var tagEls = TAGS.map(function(d){
+        var e = document.createElement("div");
+        e.className = "tag"; e.style.borderLeftColor = d.col;
+        e.innerHTML = "<b>"+d.t+"</b><i>"+d.s+"</i><u></u>";
+        stage.appendChild(e); return e;
+      });
+
+      S = { stage:stage, scene:scene, camera:camera, renderer:renderer, root:root,
+            skinG:skinG, ribG:ribG, organG:organG, devG:devG, wireG:wireG,
+            skinMat:skinMat, rimMat:rimMat, torso:torso, shoulderG:shoulderG,
+            lungL:lungL, lungR:lungR, heart:heart, diaphragm:diaphragm,
+            airways:airways, airDots:airDots, rings:rings, ringSrc:V(-4, 54, -2),
+            devHome:devHome, devAway:devAway, devParts:devParts, anchors:anchors,
+            shellMat:shellMat, lidMat:lidMat, oledCtx:oledCtx, oledTex:oledTex,
+            ledOkMat:ledOkMat, ledBadMat:ledBadMat, motorMesh:motorMesh,
+            redBeam:redBeam, irBeam:irBeam, imuArrows:imuArrows, wires:wires, dev:DEV,
+            strap:strap, strapR:strapR, TAGS:TAGS, tagEls:tagEls,
+            leads:document.getElementById("leads"),
+            layers:{ skin:true, ribs:true, organs:true, wiring:true },
+            exploded:false, explode:0, skinFade:1, shellOp:0.16, sel:null,
+            cam:{ rotY:-0.30, rotX:0.10, dist:470, lookY:38 }, target:null, drag:false,
+            breath:0, beat:0, w:0, h:0, tagOp:1, tour:null, chainT:0, detailT:0,
+            tA:V(0,0,0), tB:V(0,0,0), tC:V(0,0,0), micW:V(0,0,0), micL:V(0,0,0), proj:V(0,0,0) };
+
+      bindInput(pickable);
+      select(null);
+      return true;
+    }
+
+    function along(chain, u, out){
+      var n = chain.length - 1, f = Math.max(0, Math.min(0.9999, u)) * n, i = Math.floor(f);
+      return out.lerpVectors(chain[i], chain[i+1], f - i);
+    }
+
+    // "how it works": the signal chain behind each part, live
+    function f1(x){ return x.toFixed(1); }
+    function pct(v, b){ var p = (v / b - 1) * 100; return (p >= 0 ? "+" : "") + p.toFixed(0) + "%"; }
+    // terms: 0 wheeze, 1 oxygen, 2 breathing, 3 heart, 4 movement veto
+    function term(n){ var t = engine.terms()[n]; return t.p === 0 ? "0" : (t.p > 0 ? "+" : "") + t.p; }
+
+    var CHAINS = {
+      hr: { title:"Heart rate", steps:[
+        ["The heart beats", function(s){ return "About " + s.hr.toFixed(0) + " times a minute. Each beat pushes a pulse of blood into the skin under the device."; }],
+        ["Light meets the pulse", function(){ return "The MAX30102 shines red and infrared light into the skin. Blood absorbs light, so what comes back dips on every beat."; }],
+        ["Read over I2C", function(){ return "The sensor measures the returning light 100 times a second. The ESP32 reads it on the shared I2C bus. SDA on GPIO 8, SCL on GPIO 9."; }],
+        ["Peaks become a rate", function(s){ return "The firmware finds each beat as a peak in the infrared signal. The spacing of the peaks gives " + s.hr.toFixed(0) + " bpm."; }],
+        ["Compared with this wearer", function(s, b){ return "Their baseline is " + b.hr + " bpm, so this is " + pct(s.hr, b.hr) + ". The heart term adds 1 only above +15%. Right now: " + term(3) + "."; }]
+      ]},
+      ppg: { title:"Oxygen, pulse and breathing from one sensor", steps:[
+        ["Red and infrared into the skin", function(){ return "Oxygen-rich blood absorbs more infrared than red; oxygen-poor blood the reverse. Both beams pulse with the heart."; }],
+        ["Ratio of ratios gives SpO₂", function(s){ return "Comparing how strongly each colour pulses gives oxygen saturation: " + f1(s.spo2) + "%."; }],
+        ["Peaks give heart rate", function(s){ return "The same infrared signal, peak to peak: " + s.hr.toFixed(0) + " bpm."; }],
+        ["The slow swell gives breathing", function(s){ return "Breathing makes the pulse grow and shrink. Tracking that envelope gives " + f1(s.rr) + " breaths a minute, with no separate breathing sensor."; }],
+        ["Compared with this wearer", function(s, b){ var d = s.spo2 - b.spo2; return "SpO₂ is " + (d >= 0 ? "+" : "") + f1(d) + " points from their " + f1(b.spo2) + " baseline. More than 3 points down adds 2. Right now: " + term(1) + "."; }]
+      ]},
+      sound: { title:"Hearing a wheeze", steps:[
+        ["Air through narrowed airways", function(s){ return "When the airways narrow, air forced through them whistles. The branches in the model narrow as wheeze probability rises. Now " + s.wheeze.toFixed(2) + "."; }],
+        ["Through the chest wall", function(){ return "That sound travels through the body to the INMP441, which faces the chest rather than the room."; }],
+        ["Digital audio over I2S", function(){ return "The ESP32 drives the clock on GPIO 4 and word select on GPIO 5; the microphone sends audio back on GPIO 6, sampled at 4 kHz."; }],
+        ["A picture of the sound", function(){ return "Four seconds of audio becomes a spectrogram: 40 frequency bands over time. A wheeze shows as a narrow band that holds still."; }],
+        ["The classifier, on the chip", function(s){ return "A 61,041-weight network running on the ESP32 reads the spectrogram and gives a wheeze probability: " + s.wheeze.toFixed(2) + ". It counts above 0.50."; }],
+        ["Into the score", function(){ return "A wheeze adds 2. Right now: " + term(0) + "."; }]
+      ]},
+      breath: { title:"Breathing rate", steps:[
+        ["The diaphragm pulls down", function(s){ return "The dome under the lungs contracts, the ribs swing out, and air comes in, " + f1(s.rr) + " times a minute."; }],
+        ["The chest changes the pulse", function(){ return "Each breath shifts pressure in the chest, so the pulse under the optical sensor grows and shrinks once per breath."; }],
+        ["Counting the swell", function(){ return "The firmware tracks that envelope and counts crossings with a margin either side, so small ripples are not counted twice."; }],
+        ["Compared with this wearer", function(s, b){ return "Baseline " + f1(b.rr) + ", now " + pct(s.rr, b.rr) + ". More than +20% adds 1. Right now: " + term(2) + "."; }]
+      ]},
+      motion: { title:"Movement, and the veto", steps:[
+        ["The body moves", function(s){ return "Activity is " + s.motion.toFixed(2) + ", " + s.motionLabel.toLowerCase() + "."; }],
+        ["Three axes over I2C", function(){ return "The BMI270 measures acceleration on x, y and z. The ESP32 reads it on the same I2C bus, at address 0x68."; }],
+        ["Why it matters", function(){ return "Climbing stairs raises breathing and heart rate and dips oxygen. That is the same pattern as an episode."; }],
+        ["The veto", function(s){ return "Moving with no wheeze subtracts 2, so exertion alone can never reach an alert." +
+          (s.wheeze > 0.5 ? " A wheeze is present, so the veto is off." : "") + " Right now: " + term(4) + "."; }]
+      ]},
+      air: { title:"The air around the wearer", steps:[
+        ["Temperature and humidity", function(s){ return "The BME680 reads " + f1(s.temp) + " °C and " + s.hum.toFixed(0) + "% humidity, over the shared I2C bus."; }],
+        ["Stored with every event", function(){ return "It does not change the score. It is saved with each event, so an episode can later be placed against the conditions it happened in."; }]
+      ]},
+      brain: { title:"Inside the ESP32-S3", steps:[
+        ["Everything arrives", function(){ return "I2C on GPIO 8 and 9 brings oxygen, pulse, movement and air, and drives the screen. I2S on 4, 5 and 6 brings sound."; }],
+        ["Features", function(s){ return "SpO₂ " + f1(s.spo2) + ", heart " + s.hr.toFixed(0) + ", breathing " + f1(s.rr) + ", wheeze " + s.wheeze.toFixed(2) + ", activity " + s.motion.toFixed(2) + "."; }],
+        ["Against this wearer's baseline", function(){ return "No fixed thresholds: each reading is compared with what is normal for this person."; }],
+        ["The score", function(s){ return engine.terms().map(function(x){ return x.n + " " + (x.p > 0 ? "+" : "") + x.p; }).join(" · ") + ". Total " + s.score + "."; }],
+        ["The decision", function(s){ return "2 or more is Watch, 4 or more is Alert. Now: " + s.state + ". Nothing is sent anywhere for this to be decided."; }]
+      ]},
+      out: { title:"What the wearer gets", steps:[
+        ["State decided", function(s){ return "Score " + s.score + ", so the state is " + s.state + "."; }],
+        ["Screen", function(){ return "The OLED on the I2C bus shows the readings. In an alert it stops showing numbers and says stop and rest."; }],
+        ["Lights", function(){ return "Green on GPIO 15 while readings are within baseline. Red on GPIO 16, blinking faster as the score rises."; }],
+        ["Vibration", function(){ return "GPIO 17 through a 1 kΩ resistor switches a 2N2222, which drives the motor. Two short pulses mean alert."; }],
+        ["The wearer answers", function(){ return "The button on GPIO 18 answers I'm OK. Either the answer or the silence is logged with the reading that caused it."; }]
+      ]}
+    };
+    var CHAIN_OF = { heart:"hr", ppg:"ppg", mic:"sound", airway:"sound", lungs:"breath",
+                     diaphragm:"breath", ribs:"breath", imu:"motion", env:"air", mcu:"brain",
+                     oled:"out", led:"out", motor:"out", button:"out" };
+    var STEP_S = 2.8;
+
+    function select(k, fromTour){
+      S.sel = k || null;
+      S.chainT = 0; S.detailT = 1;
+      if (!fromTour) stopTour();
+      paintDetail();
+    }
+    function paintDetail(){
+      var d = document.getElementById("detail"), k = S.sel;
+      if (!k){
+        d.innerHTML = "<b>Nothing selected</b>Click any part in the 3D view, or press <em>Explain it step by step</em> for a guided walk through the whole system.";
+        return;
+      }
+      var head = "<b>" + PARTS[k][0] + "</b>", c = CHAINS[CHAIN_OF[k]];
+      if (!c){ d.innerHTML = head + PARTS[k][1]; return; }
+      // play the steps in order, hold on the finished chain for a beat, repeat
+      var n = c.steps.length, cyc = (n + 1) * STEP_S;
+      var on = Math.floor((S.chainT % cyc) / STEP_S);
+      var s = engine.s, b = engine.base;
+      var h = head + '<div class="chain-t">' + c.title + '</div><ol class="chain">';
+      c.steps.forEach(function(st, i){
+        h += '<li data-i="' + i + '" class="' + (i < on ? "done" : i === on ? "on" : "") + '"><b>' +
+             st[0] + '</b><span>' + st[1](s, b) + '</span></li>';
+      });
+      d.innerHTML = h + "</ol>";
+    }
+    function renderDetail(dt){
+      S.chainT += dt; S.detailT += dt;
+      if (S.detailT < 0.25) return;
+      S.detailT = 0; paintDetail();
+    }
+
+    // the guided walkthrough
+    var TOUR = ["heart", "ppg", "lungs", "mic", "imu", "mcu", "led"];
+    function tourPoint(k){
+      if (k === "heart") return S.heart.position.clone();
+      if (k === "lungs") return S.lungR.position.clone();
+      var a = S.anchors[{ ppg:"ppg", mic:"mic", imu:"imu", mcu:"mcu", led:"out" }[k]];
+      var p = new THREE.Vector3(); a.getWorldPosition(p);
+      return S.root.worldToLocal(p);
+    }
+    function flyLocal(p, close){
+      var phi = Math.atan2(-p.x, p.z);
+      S.target = { rotY: S.cam.rotY + wrapPi(phi - S.cam.rotY), rotX: 0.06,
+                   lookY: Math.max(0, Math.min(110, p.y)), dist: close ? 160 : 290, release:false };
+    }
+    function paintTourBtn(){
+      var b = document.getElementById("tourBtn");
+      b.textContent = S.tour ? "■ Stop walkthrough" : "▶ Explain it step by step";
+      b.setAttribute("aria-pressed", S.tour ? "true" : "false");
+    }
+    function tourGo(){
+      var k = TOUR[S.tour.i];
+      select(k, true);
+      flyLocal(tourPoint(k), !!DEVICE_KEYS[k]);
+    }
+    function startTour(){
+      S.tour = { i:0, t:0 };
+      tourGo(); paintTourBtn();
+      emit("Guided walkthrough started", "cy");
+    }
+    function stopTour(){
+      if (!S.tour) return;
+      S.tour = null; paintTourBtn();
+    }
+    function stepTour(dt){
+      if (!S.tour) return;
+      S.tour.t += dt;
+      var n = CHAINS[CHAIN_OF[TOUR[S.tour.i]]].steps.length;
+      if (S.tour.t < n * STEP_S + 1.2) return;
+      S.tour.i++; S.tour.t = 0;
+      if (S.tour.i < TOUR.length){ tourGo(); return; }
+      S.tour = null; paintTourBtn();
+      select(null, true);
+      S.target = { rotY: S.cam.rotY + wrapPi(-0.30 - S.cam.rotY), rotX:0.10, lookY:38, dist:470, release:true };
+      emit("Guided walkthrough finished", "");
+    }
+
+    // input: turn, zoom, pick, and the side-panel controls
+    function bindInput(pickable){
+      var stage = S.stage, lx = 0, ly = 0, moved = 0;
+      var ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+      stage.addEventListener("pointerdown", function(e){
+        S.drag = true; moved = 0; lx = e.clientX; ly = e.clientY;
+        stage.classList.add("dragging"); stage.setPointerCapture(e.pointerId); });
+      stage.addEventListener("pointermove", function(e){
+        if (!S.drag) return;
+        var dx = e.clientX - lx, dy = e.clientY - ly;
+        moved += Math.abs(dx) + Math.abs(dy);
+        if (moved > 4){ S.target = null; stopTour(); }
+        S.cam.rotY += dx * 0.008;
+        S.cam.rotX = Math.max(-1.0, Math.min(1.0, S.cam.rotX + dy * 0.006));
+        lx = e.clientX; ly = e.clientY; });
+      ["pointerup","pointercancel","pointerleave"].forEach(function(ev){
+        stage.addEventListener(ev, function(e){
+          if (S.drag && moved < 5 && ev === "pointerup") pick(e);
+          S.drag = false; stage.classList.remove("dragging");
+        });
+      });
+      stage.addEventListener("wheel", function(e){
+        e.preventDefault(); S.target = null;
+        S.cam.dist = Math.max(110, Math.min(950, S.cam.dist + e.deltaY * 0.5));
+      }, {passive:false});
+
+      function pick(e){
+        var r = stage.getBoundingClientRect();
+        ptr.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+        ptr.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+        ray.setFromCamera(ptr, S.camera);
+        var hits = ray.intersectObjects(pickable, false).filter(function(h){
+          if (!isShown(h.object)) return false;
+          // a see-through case must not swallow clicks meant for what is inside it
+          if (h.object.userData.part === "case" && S.shellOp < 0.5) return false;
+          return true;
+        });
+        if (!hits.length){ select(null); return; }
+        var k = hits[0].object.userData.part;
+        select(k);
+        // fly: turn the body so the part faces the camera, then close in on it
+        var p = S.root.worldToLocal(hits[0].point.clone());
+        var phi = Math.atan2(-p.x, p.z);
+        S.target = { rotY: S.cam.rotY + wrapPi(phi - S.cam.rotY), rotX: 0.06,
+                     lookY: Math.max(0, Math.min(110, p.y)),
+                     dist: DEVICE_KEYS[k] ? 160 : 290, release:false };
+      }
+
+      document.getElementById("layers").addEventListener("click", function(e){
+        var b = e.target.closest("button[data-l]"); if (!b) return;
+        var l = b.dataset.l;
+        S.layers[l] = !S.layers[l];
+        b.setAttribute("aria-pressed", S.layers[l] ? "true" : "false");
+      });
+      document.getElementById("explode").addEventListener("click", function(){
+        S.exploded = !S.exploded;
+        this.setAttribute("aria-pressed", S.exploded ? "true" : "false");
+        this.textContent = S.exploded ? "Put it back on" : "Exploded view";
+        emit(S.exploded ? "Device opened into its layers" : "Device back on the chest", "");
+      });
+      document.getElementById("resetView").addEventListener("click", function(){
+        select(null);
+        S.target = { rotY: S.cam.rotY + wrapPi(-0.30 - S.cam.rotY), rotX:0.10,
+                     lookY:38, dist:470, release:true };
+      });
+      document.getElementById("micBtn").addEventListener("click", startMic);
+      document.getElementById("tourBtn").addEventListener("click", function(){
+        if (S.tour){ stopTour(); select(null, true); } else startTour();
+      });
+      // click a step to jump to it
+      document.getElementById("detail").addEventListener("click", function(e){
+        var li = e.target.closest("li[data-i]"); if (!li) return;
+        S.chainT = +li.dataset.i * STEP_S; S.detailT = 1;
+        if (S.tour) S.tour.t = S.chainT;
+      });
+    }
+
+    // the alert response sequence
+    var tlEl, stepEls, actsEl, phoneEl, phoneMsg;
+    function initTimeline(){
+      tlEl = document.getElementById("tl");
+      actsEl = document.getElementById("acts");
+      phoneEl = document.getElementById("phone");
+      phoneMsg = document.getElementById("phoneMsg");
+      STEPS.forEach(function(s,i){
+        var d = document.createElement("div");
+        d.className = "s";
+        d.innerHTML = '<span class="k">'+(i+1)+'</span><span class="w"><b>'+
+                      s[0]+'</b><span>'+s[1]+'</span></span>';
+        tlEl.appendChild(d);
+      });
+      stepEls = tlEl.querySelectorAll(".s");
+      document.getElementById("imok").addEventListener("click", function(){ answer("ok"); });
+      document.getElementById("needhelp").addEventListener("click", function(){ answer("help"); });
+      paintTimeline();
+    }
+    function paintTimeline(){
+      for (var i = 0; i < stepEls.length; i++)
+        stepEls[i].className = "s" + (i < resp.step ? " done" : i === resp.step ? " live" : "");
+      actsEl.hidden = resp.step !== 1;
+    }
+    function answer(kind){
+      if (resp.step !== 1) return;
+      resp.ack = kind; resp.step = 2; resp.t = 0; paintTimeline();
+      emit(kind === "ok" ? "Wearer answered: I'm OK" : "Wearer answered: need help",
+           kind === "ok" ? "gn" : "rd");
+    }
+    function notifyCaregiver(){
+      var s = engine.s;
+      phoneMsg.textContent = "Elevated respiratory risk. Wheeze present. Oxygen " +
+        (engine.base.spo2 - s.spo2).toFixed(1) + " points below their baseline, breathing " +
+        s.rr.toFixed(0) + " a minute against a usual " + engine.base.rr.toFixed(0) +
+        ". Last ten minutes attached.";
+      phoneEl.hidden = false;
+      emit("Caregiver notified with the last ten minutes", "rd");
+    }
+    function stepResponse(dt){
+      var st = engine.s.state;
+      if (st === "Alert" && resp.step < 0){
+        resp.step = 0; resp.t = 0; resp.ack = null;
+        phoneEl.hidden = true; paintTimeline();
+      }
+      if (resp.step < 0) return;
+      resp.t += dt;
+      if (resp.step === 0 && resp.t > 2.2){ resp.step = 1; resp.t = 0; paintTimeline(); }
+      else if (resp.step === 1 && resp.t > 12){ resp.ack = "silent"; resp.step = 2; resp.t = 0; paintTimeline(); }
+      else if (resp.step === 2 && resp.t > 1.8){
+        if (resp.ack === "ok") resp.step = 4; else { resp.step = 3; notifyCaregiver(); }
+        resp.t = 0; paintTimeline();
+      }
+      else if (resp.step === 3 && resp.t > 2.4){ resp.step = 4; resp.t = 0; paintTimeline(); }
+      if (resp.step === 4 && st === "Normal"){
+        resp.cleared += dt;
+        if (resp.cleared > 3){ resp.step = -1; resp.cleared = 0; phoneEl.hidden = true; paintTimeline(); }
+      } else resp.cleared = 0;
+    }
+
+    // the device's own screen
+    function drawScreen(t){
+      var g = S.oledCtx, s = engine.s, w = 256;
+      g.setTransform(2, 0, 0, 2, 0, 0);     // 512 px canvas, drawn at 256
+      g.fillStyle = "#000"; g.fillRect(0,0,256,128);
+      g.fillStyle = "#3BD6CC"; g.font = "600 20px 'IBM Plex Mono', monospace";
+      g.fillText("RespiGuard", 8, 24);
+      var lab = s.state === "Normal" ? "OK" : s.state.toUpperCase();
+      g.font = "600 18px 'IBM Plex Mono', monospace";
+      var lw = g.measureText(lab).width;
+      if (s.state !== "Normal"){
+        g.fillRect(w-lw-16, 6, lw+11, 23); g.fillStyle = "#000";
+        g.fillText(lab, w-lw-11, 24); g.fillStyle = "#3BD6CC";
+      } else g.fillText(lab, w-lw-11, 24);
+      g.fillRect(6, 32, w-12, 2);
+
+      if (resp.step >= 1 && resp.step <= 3 && s.state === "Alert"){
+        g.font = "600 17px 'IBM Plex Mono', monospace";
+        g.fillText("ELEVATED", 8, 58); g.fillText("RESPIRATORY RISK", 8, 78);
+        g.font = "14px 'IBM Plex Mono', monospace";
+        g.fillText("Stop and rest.", 8, 100);
+        g.fillText("Follow your action plan.", 8, 118);
+        if (resp.step === 1 && Math.floor(t*2) % 2) g.fillRect(0, 124, 256, 4);
+        S.oledTex.needsUpdate = true; return;
+      }
+      g.font = "16px 'IBM Plex Mono', monospace";
+      g.fillText("SpO2 " + s.spo2.toFixed(1), 8, 58);
+      g.fillText("HR   " + s.hr.toFixed(0), 8, 80);
+      g.fillText("RR   " + s.rr.toFixed(1), 8, 102);
+      // the same spectrum the console shows, in miniature on the device
+      for (var i = 0; i < HALF; i += 2){
+        var v = magS[i];
+        if (v < 0.15) continue;
+        g.fillStyle = v > 0.62 ? "#F0A25E" : "#3BD6CC";
+        g.globalAlpha = Math.min(1, v*1.2);
+        g.fillRect(146 + (i/HALF)*100, 108 - v*44, 3, v*44);
+      }
+      g.globalAlpha = 1;
+      S.oledTex.needsUpdate = true;
+    }
+
+    // per-frame
+    var NARROW = { "-1":0.08, 0:0.2, 1:0.4, 2:0.55, 3:0.65 };   // small airways narrow most
+
+    function frame(dt, t){
+      readMic();
+      var s = engine.s, st = s.state;
+      // physiology stops when the simulation is paused; the camera does not
+      var pdt = engine.running ? dt * engine.speed : 0;
+
+      var stage = S.stage, w = stage.clientWidth, h = stage.clientHeight;
+      if (w && h && (w !== S.w || h !== S.h)){
+        S.w = w; S.h = h;
+        S.renderer.setSize(w, h, false);
+        S.camera.aspect = w / h; S.camera.updateProjectionMatrix();
+      }
+
+      var c = document.getElementById("chip");
+      c.className = "ov chip" + (st === "Watch" ? " watch" : st === "Alert" ? " alert" : "");
+      c.textContent = st;
+
+      stepResponse(pdt);
+      drawScreen(t);
+      renderDetail(dt);
+      stepTour(dt);
+
+      // layers and the exploded view
+      var L = S.layers;
+      S.skinFade += ((L.skin ? 1 : 0) - S.skinFade) * 0.15;
+      S.skinMat.opacity = 0.14 * S.skinFade;
+      S.rimMat.uniforms.amt.value = 0.85 * S.skinFade;
+      S.skinG.visible = S.skinFade > 0.02;
+      S.ribG.visible = L.ribs;
+      S.organG.visible = L.organs;
+      S.explode += ((S.exploded ? 1 : 0) - S.explode) * 0.07;
+      var e = S.explode;
+      var seeInside = L.wiring || e > 0.02;
+      S.shellOp += ((seeInside ? 0.16 : 1) - S.shellOp) * 0.15;
+      S.shellMat.opacity = S.lidMat.opacity = S.shellOp;
+      S.dev.edgeMat.opacity = 0.2 + 0.5 * (1 - S.shellOp);
+      S.wireG.visible = seeInside;
+
+      // breathing and heartbeat, driven by the simulated rates
+      S.breath += pdt * (s.rr / 60) * Math.PI * 2;
+      S.beat   += pdt * (s.hr / 60) * Math.PI * 2;
+      var sb = Math.sin(S.breath);
+      var d = st === "Alert" ? 0.05 : 0.11;               // distress: faster and shallower
+      var tb = 1 + sb * d * 0.18;
+      S.torso.scale.set(tb, 1, DEPTH * tb);
+      S.strap.scale.set(S.strapR * 1.035 * tb, 12, S.strapR * DEPTH * 1.07 * tb);
+      S.ribG.scale.set(1 + sb * d * 0.28, 1, 1 + sb * d * 0.35);
+      // shoulders rise on each breath, much more once the accessory muscles join in
+      S.shoulderG.position.y = Math.max(0, sb) * d * 12 * (st === "Alert" ? 2.6 : 1);
+      S.lungR.scale.set(1 + sb*d*0.7, 1 + sb*d, 1 + sb*d*0.7);
+      S.lungL.scale.set(1 + sb*d*0.7, 1 + sb*d, 1 + sb*d*0.7);
+      var hb = 1 + Math.max(0, Math.sin(S.beat)) * 0.17;
+      S.heart.scale.set(hb, 1.15 * hb, 0.85 * hb);
+      S.diaphragm.position.y = 12 - sb * d * 40;          // down on the way in
+      S.diaphragm.scale.y = 12 * (1 - sb * d * 2.2);      // and flatter
+
+      S.airways.forEach(function(m){
+        var n = 1 - s.wheeze * NARROW[m.userData.depth];
+        m.scale.set(n, 1, n);
+      });
+
+      var hot = s.wheeze > 0.5;
+      var inward = Math.cos(S.breath) >= 0 ? 1 : -1;
+      var flow = (s.rr / 60) * 2 * (1 - s.wheeze * 0.55);
+      S.airDots.forEach(function(m){
+        var u = m.userData.u + inward * flow * pdt;
+        if (u > 1) u -= 1; if (u < 0) u += 1;
+        m.userData.u = u;
+        along(m.userData.chain, u, m.position);
+        m.material.opacity = Math.sin(u * Math.PI) * 0.9 * (0.35 + 0.65 * Math.abs(Math.cos(S.breath)));
+        m.material.color.setHex(hot ? 0xF0A25E : 0x7FE3F0);
+      });
+
+      // the body itself: bob and sway with movement; camera and focus
+      var mv = Math.max(0, s.motion - 0.1);
+      var cam = S.cam, tg = S.target;
+      if (tg){
+        var k = 1 - Math.exp(-dt * 3.5);
+        cam.rotY += (tg.rotY - cam.rotY) * k; cam.rotX += (tg.rotX - cam.rotX) * k;
+        cam.lookY += (tg.lookY - cam.lookY) * k; cam.dist += (tg.dist - cam.dist) * k;
+        if (tg.release && Math.abs(tg.dist - cam.dist) < 2 && Math.abs(tg.rotY - cam.rotY) < 0.01) S.target = null;
+      } else if (!S.drag && !REDUCE) cam.rotY += 0.0018;
+      S.root.rotation.set(cam.rotX, cam.rotY, Math.sin(t * Math.PI * 1.6) * mv * 0.035);
+      S.root.position.y = Math.sin(t * Math.PI * 3.2) * mv * 3.5;
+      S.camera.position.set(0, cam.lookY + 8, cam.dist);
+      S.camera.lookAt(0, cam.lookY, 0);
+
+      // device: on the chest, or opened out in front of it
+      S.devG.position.lerpVectors(S.devHome, S.devAway, e);
+      S.devG.position.z += sb * d * 5.5 * (1 - e);
+      S.devG.scale.setScalar(DEV_S + (1.05 - DEV_S) * e);
+      S.devG.rotation.x = Math.PI/2 - 0.1 - 0.85 * e;
+      S.devParts.forEach(function(m){
+        m.position.y = m.userData.baseY + m.userData.L * GAP * e;
+        if (m.userData.wall) m.visible = e < 0.5;
+      });
+
+      S.ledOkMat.emissiveIntensity += ((st === "Normal" ? 1.5 : 0.04) - S.ledOkMat.emissiveIntensity) * 0.15;
+      var bl = st === "Alert" ? (Math.floor(t*4) % 2) : st === "Watch" ? (Math.floor(t*1.25) % 2) : 0;
+      S.ledBadMat.emissiveIntensity += ((bl ? 1.9 : 0.05) - S.ledBadMat.emissiveIntensity) * 0.3;
+      var ph = t % 4, buzz = st === "Alert" && (ph < 0.22 || (ph > 0.34 && ph < 0.56));
+      S.motorMesh.position.x = S.motorMesh.userData.baseX + (buzz ? (Math.random() - 0.5) * 0.8 : 0);
+
+      var pulse = Math.pow(Math.max(0, Math.sin(S.beat)), 2);
+      S.redBeam.material.opacity = 0.12 + 0.42 * pulse;
+      S.irBeam.material.opacity  = 0.10 + 0.36 * pulse;
+
+      S.imuArrows.forEach(function(a, i){
+        var len = 3 + s.motion * 16 * (0.55 + 0.45 * Math.sin(t * 9 + i * 2.1));
+        a.setLength(len, Math.min(len * 0.4, 1.8), 1.2);
+      });
+
+      // data along the wires, faster as the score rises; organs light up the leads of the sensor that measures them
+      var speed = st === "Alert" ? 0.95 : st === "Watch" ? 0.65 : 0.4;
+      var WF = { heart:"ppg", lungs:"ppg", diaphragm:"ppg", ribs:"ppg", airway:"mic" };
+      var focus = S.sel && S.sel !== "mcu" && S.sel !== "case" ? (WF[S.sel] || S.sel) : null;
+      S.dev.update(e, pdt, speed, focus, seeInside && (cam.dist < 300 || e > 0.5));
+
+      // sound rings, from the airways through the chest wall to the microphone
+      S.anchors.mic.getWorldPosition(S.micW);
+      S.micL.copy(S.micW); S.root.worldToLocal(S.micL);
+      var swell = 0.35 + 0.65 * Math.max(0, sb);
+      var rate = 0.45 + s.wheeze * 1.3;
+      S.rings.forEach(function(r){
+        r.visible = L.organs && e < 0.6;
+        if (!r.visible) return;
+        r.userData.u = (r.userData.u + pdt * rate) % 1;
+        var u = r.userData.u;
+        r.position.lerpVectors(S.ringSrc, S.micL, u);
+        r.lookAt(S.micW);
+        r.scale.setScalar((hot ? 2.2 : 3.2) + u * (hot ? 2.5 : 5));
+        r.material.opacity = Math.sin(u * Math.PI) * swell * (0.3 + 0.6 * Math.min(1, s.wheeze * 1.4 + 0.15)) * (1 - e);
+        r.material.color.setHex(hot ? 0xF0A25E : 0x48C4D6);
+      });
+
+      S.renderer.render(S.scene, S.camera);
+
+      // leader lines from each anchor out to its label floating labels help at a distance and clutter up close.
+      S.tagOp += (((cam.dist < 330 || e > 0.3) ? 0 : 1) - S.tagOp) * 0.15;
+      S.leads.style.opacity = S.tagOp;
+      var seg = "";
+      S.TAGS.forEach(function(dd, i){
+        var a = S.anchors[dd.k]; if (!a) return;
+        a.getWorldPosition(S.proj); S.proj.project(S.camera);
+        var px = (S.proj.x * 0.5 + 0.5) * w, py = (-S.proj.y * 0.5 + 0.5) * h;
+        var tx = dd.side === "L" ? 12 : w - 174, ty = h * dd.y;
+        var el = S.tagEls[i];
+        el.style.left = tx + "px"; el.style.top = ty + "px"; el.style.opacity = S.tagOp;
+        el.querySelector("u").textContent = dd.v();
+        var jx = dd.side === "L" ? tx + 162 : tx, jy = ty + el.offsetHeight / 2;
+        seg += '<path d="M'+px.toFixed(1)+','+py.toFixed(1)+' L'+
+               ((jx+px)/2).toFixed(1)+','+jy.toFixed(1)+' L'+jx+','+jy.toFixed(1)+
+               '" fill="none" stroke="'+dd.col+'" stroke-width="1.3" opacity=".8"/>'+
+               '<circle cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="3.2" fill="'+dd.col+'"/>';
+      });
+      S.leads.innerHTML = seg;
+    }
+
+    return {
+      ensure: function(){
+        if (built) return;
+        if (!build()) return;      // three.js not there yet. Try again next visit
+        initTimeline();
+        built = true;
+      },
+      frame: function(dt, t){ if (built) frame(dt, t); }
+    };
+  })();
+
+  var REDUCE = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // second copy of the score panel, on the body page
+  var score2Host = document.getElementById("score2");
+  engine.terms().forEach(function(t){
+    var d = document.createElement("div");
+    d.className = "row";
+    d.innerHTML = '<span>' + t.n + '</span><span class="pts off" data-p>0</span>';
+    score2Host.appendChild(d);
+  });
+  var ptsEls2 = score2Host.querySelectorAll("[data-p]");
+
+  // render
+  var last = performance.now(), heroPhase = 0, acc = 0;
+  function loop(now){
+    requestAnimationFrame(loop);
+    var dt = Math.min(0.05, (now - last) / 1000); last = now;
+    heroPhase = (heroPhase + dt * 0.28) % 1;
+
+
+    engine.tick(dt);
+    if (engine.running){
+      analyse();
+      for (var i = 0; i < N; i += 3) waveHist.push(audio[i]);
+      while (waveHist.length > 1400) waveHist.shift();
+      acc += dt;
+      if (acc > 0.45){
+        acc = 0;
+        hist.spo2.push(engine.s.spo2); hist.hr.push(engine.s.hr);
+        hist.rr.push(engine.s.rr); hist.wz.push(engine.s.wheeze);
+        ["spo2","hr","rr","wz"].forEach(function(k){ if (hist[k].length > 90) hist[k].shift(); });
+      }
+    }
+
+    var s = engine.s;
+    document.getElementById("clock").textContent = stamp();
+
+    // telemetry
+    TELE.forEach(function(d, i){
+      var e = teleEls[i], hit = d.hit();
+      e.className = "card tele" + (hit ? (s.state === "Alert" ? " al" : " hi") : "");
+      var v = e.querySelector("[data-v]");
+      v.innerHTML = d.v() + (d.u ? '<small>' + d.u + '</small>' : '');
+      e.querySelector("[data-b]").innerHTML = d.b();
+      if (d.h) spark(e.querySelector("[data-c]"), hist[d.h], hit);
+    });
+
+    // score
+    var terms = engine.terms();
+    var cls = s.state === "Alert" ? "al" : s.state === "Watch" ? "wa" : "ok";
+    terms.forEach(function(t, i){
+      var txt = (t.p > 0 ? "+" : "") + t.p;
+      var cn  = "pts " + (t.veto && t.on ? "veto" : t.on ? "on" : "off");
+      ptsEls[i].textContent = txt;  ptsEls[i].className = cn;
+      ptsEls2[i].textContent = txt; ptsEls2[i].className = cn;
+    });
+    ["total","total2"].forEach(function(id){
+      var e = document.getElementById(id);
+      e.textContent = s.score; e.className = "n " + cls;
+    });
+    ["stateName","stateName2"].forEach(function(id){
+      var e = document.getElementById(id);
+      e.textContent = s.state; e.className = "st " + cls;
+    });
+
+    // classifier card
+    document.getElementById("clsName").textContent =
+      s.classification === "POSSIBLE WHEEZE" ? "Possible wheeze pattern"
+      : s.classification === "UNCERTAIN" ? "Uncertain" : "No abnormal pattern";
+    document.getElementById("clsName").className = "s " +
+      (s.classification === "POSSIBLE WHEEZE" ? "wa" : "");
+    document.getElementById("clsConf").textContent = s.wheeze.toFixed(2);
+    document.getElementById("clsTag").textContent = s.classification;
+    var bar = document.getElementById("clsBar");
+    bar.style.width = (s.wheeze * 100).toFixed(0) + "%";
+    bar.className = s.wheeze > 0.5 ? "hot" : "";
+
+    ENV.forEach(function(e, i){ envEls[i].textContent = e.v(); });
+
+    if (page === "body") Body.frame(dt, now / 1000);
+    if (page === "overview") drawWave(document.getElementById("wave"), 150);
+    if (page === "resp"){
+      drawWave(document.getElementById("wave2"), 132);
+      drawSpectrum(); drawSpectro();
+    }
+    if (page === "fusion"){
+      dots("fusionDots", FUSE_D, heroPhase);
+      var out = document.getElementById("fusionOut");
+      out.textContent = s.state + " · score " + s.score;
+      out.setAttribute("fill", s.state === "Alert" ? "#C2453A" : s.state === "Watch" ? "#B7791F" : "#2F8A57");
+    }
+    if (page === "sensors") dots("archDots", ARCH_D, heroPhase);
+  }
+
+  paintScenario();
+  renderEvents();
+  requestAnimationFrame(loop);
+})();
+</script>
