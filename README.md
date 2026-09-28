@@ -6,7 +6,10 @@ episode when those drift away from that baseline while a wheeze classifier is
 also firing. Movement suppresses the alert, so exertion is not mistaken for an
 attack.
 
-Hand-soldered from breakout modules. Total parts cost around ₹1,700.
+Hand-soldered from breakout modules. The core modules cost about ₹2,674, or
+about ₹3,503 with the optional BME680. Battery, power parts, enclosure and
+assembly are extra. The separate ₹1,707 order in the hardware handbook covers
+those power parts, the enclosure and bench tools, not the sensor modules.
 
 ## Where things stand
 
